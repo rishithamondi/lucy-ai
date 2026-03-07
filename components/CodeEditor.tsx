@@ -17,7 +17,7 @@ interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
   language: EditorLanguage;
-  height?: number;
+  height?: number | string;
 }
 
 const defaultCode = {
@@ -39,7 +39,10 @@ export default function CodeEditor({
   height = 500,
 }: CodeEditorProps) {
   return (
-    <div className="overflow-hidden rounded-lg border border-[#333] bg-[#1e1e1e]">
+    <div
+      className="min-h-0 shrink-0 overflow-hidden rounded-lg border border-[#333] bg-[#1e1e1e]"
+      style={{ height }}
+    >
       <MonacoEditor
         height={height}
         language={language}
@@ -50,11 +53,16 @@ export default function CodeEditor({
           minimap: { enabled: false },
           fontSize: 14,
           lineNumbers: "on",
-          scrollBeyondLastLine: false,
-          wordWrap: "on",
+          scrollBeyondLastLine: true,
+          wordWrap: "off",
           padding: { top: 16 },
           folding: true,
           renderLineHighlight: "line",
+          scrollbar: {
+            vertical: "auto",
+            horizontal: "auto",
+            useShadows: true,
+          },
         }}
       />
     </div>
