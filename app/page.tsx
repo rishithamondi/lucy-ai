@@ -16,13 +16,10 @@ import {
 } from "@/lib/runnerUtils";
 
 
-export type VisualizerStep = {
+export type FlowchartData = {
+  mermaid: string;
   explanation: string;
-  array?: number[];
-  i?: number;
-  j?: number;
 };
-export type VisualizerData = { pattern: string; steps: VisualizerStep[] };
 
 export default function Home() {
   const [language, setLanguage] = useState<EditorLanguage>("python");
@@ -36,8 +33,8 @@ export default function Home() {
   const [isRunning, setIsRunning] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isGeneratingEdgeCases, setIsGeneratingEdgeCases] = useState(false);
-  const [visualizerData, setVisualizerData] = useState<VisualizerData | null>(null);
-  const [isVisualizing, setIsVisualizing] = useState(false);
+  const [flowchartData, setFlowchartData] = useState<FlowchartData | null>(null);
+  const [isGeneratingFlowchart, setIsGeneratingFlowchart] = useState(false);
   const [problemMeta, setProblemMeta] = useState(() => ({
     title: defaultProblem.title,
     description: defaultProblem.description,
@@ -380,12 +377,12 @@ export default function Home() {
     }
   }, [problemMeta.description, code, language]);
 
-  const handleVisualizeAlgorithm = useCallback(async () => {
-    setIsVisualizing(true);
-    setVisualizerData(null);
+  const handleGenerateFlowchart = useCallback(async () => {
+    setIsGeneratingFlowchart(true);
+    setFlowchartData(null);
 
     try {
-      const res = await fetch("/api/visualize", {
+      const res = await fetch("/api/flowchart", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -396,20 +393,20 @@ export default function Home() {
       });
 
       if (!res.ok) {
-        setVisualizerData(null);
+        setFlowchartData(null);
         return;
       }
 
       const data = await res.json();
-      setVisualizerData({
-        pattern: data.pattern || "Unknown Pattern",
-        steps: data.steps || [{ explanation: "No steps found." }],
+      setFlowchartData({
+        mermaid: data.mermaid || "Error",
+        explanation: data.explanation || "No explanation found.",
       });
     } catch (err) {
-      console.error("[handleVisualizeAlgorithm] Error:", err);
-      setVisualizerData(null);
+      console.error("[handleGenerateFlowchart] Error:", err);
+      setFlowchartData(null);
     } finally {
-      setIsVisualizing(false);
+      setIsGeneratingFlowchart(false);
     }
   }, [problemMeta.description, code, language]);
 
@@ -486,9 +483,9 @@ export default function Home() {
               userCode={code}
               onGenerateEdgeCases={handleGenerateEdgeCases}
               isGeneratingEdgeCases={isGeneratingEdgeCases}
-              visualizerData={visualizerData}
-              onVisualizeAlgorithm={handleVisualizeAlgorithm}
-              isVisualizing={isVisualizing}
+              flowchartData={flowchartData}
+              onGenerateFlowchart={handleGenerateFlowchart}
+              isGeneratingFlowchart={isGeneratingFlowchart}
             />
           </Panel>
         </Group>

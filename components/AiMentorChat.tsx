@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useCallback, FormEvent } from "react";
+import { useState, useCallback, FormEvent, useRef, useEffect } from "react";
 import type { EditorLanguage } from "./CodeEditor";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type ChatMessage = {
   id: number;
@@ -25,15 +27,34 @@ export default function AiMentorChat({
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [nextId, setNextId] = useState(1);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isSending]);
 
   const toggleOpen = () => {
     setIsOpen((prev) => !prev);
   };
 
+  const handleQuickAction = (actionText: string) => {
+    setInput(actionText);
+    // Use setTimeout to allow state to update before submit
+    setTimeout(() => {
+      const formEvent = { preventDefault: () => {} } as FormEvent;
+      handleSubmit(formEvent, actionText);
+    }, 0);
+  };
+
   const handleSubmit = useCallback(
-    async (e?: FormEvent) => {
+    async (e?: FormEvent, overrideInput?: string) => {
       if (e) e.preventDefault();
-      const trimmed = input.trim();
+      const textToSubmit = overrideInput !== undefined ? overrideInput : input;
+      const trimmed = textToSubmit.trim();
       if (!trimmed || isSending) return;
 
       const userMessage: ChatMessage = {
@@ -122,8 +143,9 @@ export default function AiMentorChat({
               <p className="text-sm font-semibold text-white">
                 AI Mentor Chat
               </p>
-              <p className="text-xs text-gray-400">
-                Ask questions about the current problem and your code.
+              <div className="mt-1 h-[1px] w-8 bg-emerald-600 rounded"></div>
+              <p className="mt-1 text-xs text-gray-400">
+                Ask questions about the current problem or your solution.
               </p>
             </div>
             <button
@@ -136,9 +158,9 @@ export default function AiMentorChat({
           </div>
 
           {/* Messages */}
-          <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm">
+          <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 text-sm flex flex-col">
             {messages.length === 0 ? (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-slate-500 m-auto text-center italic">
                 Start the conversation by asking about the problem, your
                 approach, or how to improve your solution.
               </p>
@@ -146,31 +168,76 @@ export default function AiMentorChat({
               messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex ${
+                  className={`flex w-full ${
                     msg.role === "user" ? "justify-end" : "justify-start"
                   }`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                    className={`max-w-[85%] rounded-lg px-3 py-2 whitespace-pre-wrap break-words ${
                       msg.role === "user"
-                        ? "bg-emerald-600 text-white"
-                        : "bg-[#1f2933] text-gray-100 border border-[#374151]"
+                        ? "bg-cyan-700 text-white"
+                        : "bg-[#0f2438] text-slate-200 border border-slate-700/50"
                     }`}
                   >
-                    <p className="whitespace-pre-wrap break-words">
-                      {msg.content}
-                    </p>
+                    <div className="prose prose-sm prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          code: ({ node, ...props }: any) => {
+                            const isInline = !String(props.children).includes('\n');
+                            return isInline 
+                              ? <code className="bg-slate-800 text-cyan-300 px-1 py-0.5 rounded text-xs" {...props} /> 
+                              : <pre className="font-mono bg-slate-900 p-3 rounded text-xs overflow-x-auto text-slate-300 my-2"><code {...props} /></pre>
+                          },
+                          p: ({ node, ...props }) => <p className="leading-relaxed whitespace-pre-wrap break-words m-0 p-0" {...props} />
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 </div>
               ))
             )}
+            
+            {isSending && (
+              <div className="flex w-full justify-start">
+                <div className="max-w-[85%] rounded-lg px-3 py-2 bg-[#0f2438] text-slate-400 border border-slate-700/50 text-xs italic flex items-center gap-2">
+                  <span className="flex gap-1">
+                    <span className="animate-bounce block w-1 h-1 bg-slate-400 rounded-full" style={{ animationDelay: '0ms' }}></span>
+                    <span className="animate-bounce block w-1 h-1 bg-slate-400 rounded-full" style={{ animationDelay: '150ms' }}></span>
+                    <span className="animate-bounce block w-1 h-1 bg-slate-400 rounded-full" style={{ animationDelay: '300ms' }}></span>
+                  </span>
+                  AI Mentor is typing...
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} className="h-1 shrink-0" />
           </div>
 
           {/* Input area */}
-          <form
-            onSubmit={handleSubmit}
-            className="border-t border-[#30363d] bg-[#111827] px-3 py-3"
-          >
+          <div className="border-t border-[#30363d] bg-[#111827] px-3 py-3 flex flex-col gap-3">
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              <button 
+                onClick={() => handleQuickAction("Explain my code")}
+                className="whitespace-nowrap px-3 py-1.5 rounded-full bg-[#1f2933] border border-slate-700 text-xs text-slate-300 hover:bg-[#2d3748] hover:text-white transition-colors"
+              >
+                Explain my code
+              </button>
+              <button 
+                onClick={() => handleQuickAction("Why is my code wrong?")}
+                className="whitespace-nowrap px-3 py-1.5 rounded-full bg-[#1f2933] border border-slate-700 text-xs text-slate-300 hover:bg-[#2d3748] hover:text-white transition-colors"
+              >
+                Why is my code wrong?
+              </button>
+              <button 
+                onClick={() => handleQuickAction("Suggest optimization")}
+                className="whitespace-nowrap px-3 py-1.5 rounded-full bg-[#1f2933] border border-slate-700 text-xs text-slate-300 hover:bg-[#2d3748] hover:text-white transition-colors"
+              >
+                Suggest optimization
+              </button>
+            </div>
+            <form onSubmit={(e) => handleSubmit(e)}>
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -187,7 +254,8 @@ export default function AiMentorChat({
                 {isSending ? "Sending..." : "Send"}
               </button>
             </div>
-          </form>
+            </form>
+          </div>
         </div>
       </div>
     </>

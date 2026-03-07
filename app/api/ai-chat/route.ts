@@ -46,8 +46,12 @@ ${language}
 Student question:
 ${message}
 
-Answer clearly and guide the student.
-Do not immediately give the full solution unless the student explicitly asks.`;
+Instructions for responding:
+1. If the question is a simple yes/no or syntax query, give a short, direct answer.
+2. If the student is asking why their code is wrong/failing (debugging), explain the issue step-by-step.
+3. If they are asking a conceptual question or for an optimization, provide a clear explanation with brief examples.
+4. Avoid unnecessarily long responses or huge blocks of code.
+5. Do not immediately give the full solution unless explicitly asked. Guide them to the answer.`;
 
     // If no AI key configured, return a static guidance message.
     if (!apiKey) {
