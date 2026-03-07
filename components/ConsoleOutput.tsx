@@ -89,7 +89,7 @@ export default function ConsoleOutput({
             rankSpacing: 100,
           }
         });
-        
+
         mermaid.render("flowchart-svg-diagram", flowchartData.mermaid).then((result) => {
           if (mermaidRef.current) {
             mermaidRef.current.innerHTML = result.svg;
@@ -166,106 +166,105 @@ export default function ConsoleOutput({
         <LearningPanelContainer>
           <div className="space-y-4">
             {testResults.map((result) => (
-            <div
-              key={result.id}
-              className="rounded border border-[#333] bg-[#252526] p-3"
-            >
-              <div className="mb-2 flex items-center gap-2">
-                <span className="text-xs font-semibold text-gray-300">
-                  Test Case {result.id}
-                </span>
-                <span
-                  className={`text-xs font-medium ${
-                    result.status === "pass"
-                      ? "text-emerald-400"
-                      : result.status === "fail"
-                        ? "text-red-400"
-                        : "text-gray-500"
-                  }`}
-                >
-                  {result.status === "pass" && "✓ PASS"}
-                  {result.status === "fail" && "✗ FAIL"}
-                  {result.status === "pending" && "○ Pending"}
-                </span>
-              </div>
-              <div className="space-y-1 text-xs text-gray-400">
-                {result.input != null && (
-                  <p>
-                    <span className="text-gray-500">Input: </span>
-                    {result.input}
-                  </p>
-                )}
-                {result.expectedOutput != null && (
-                  <p>
-                    <span className="text-gray-500">Expected: </span>
-                    {result.expectedOutput}
-                  </p>
-                )}
-                {result.actualOutput != null && (
-                  <p>
-                    <span className="text-gray-500">Output: </span>
-                    {result.actualOutput}
-                  </p>
-                )}
-                <p>
-                  <span className="text-gray-500">Result: </span>
+              <div
+                key={result.id}
+                className="rounded border border-[#333] bg-[#252526] p-3"
+              >
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-300">
+                    Test Case {result.id}
+                  </span>
                   <span
-                    className={
-                      result.status === "pass"
+                    className={`text-xs font-medium ${result.status === "pass"
                         ? "text-emerald-400"
                         : result.status === "fail"
                           ? "text-red-400"
-                          : "text-gray-400"
-                    }
+                          : "text-gray-500"
+                      }`}
                   >
-                    {result.status === "pass"
-                      ? "PASS"
-                      : result.status === "fail"
-                        ? "FAIL"
-                        : "Pending"}
+                    {result.status === "pass" && "✓ PASS"}
+                    {result.status === "fail" && "✗ FAIL"}
+                    {result.status === "pending" && "○ Pending"}
                   </span>
-                </p>
-              </div>
-              {result.status === "fail" && (
-                <div className="mt-2">
-                  <button
-                    onClick={() => handleExplainError(result)}
-                    disabled={loadingIds.has(result.id)}
-                    className="rounded border border-amber-600 bg-transparent px-3 py-1.5 text-xs font-medium text-amber-400 transition-colors hover:bg-amber-600/20 disabled:opacity-50"
-                  >
-                    {loadingIds.has(result.id)
-                      ? "Loading..."
-                      : "Explain Error"}
-                  </button>
-                  {explanations[result.id] && (
-                    <div className="mt-2 rounded border border-[#333] bg-[#1e1e1e] p-2">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-cyan-400">
-                        AI Explanation:
-                      </p>
-                      <div className="bg-[#0f2438] border border-slate-700 rounded-lg p-4 space-y-3">
-                        <ReactMarkdown 
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            p: ({ node, ...props }) => <p className="text-sm text-slate-300 leading-relaxed" {...props} />,
-                            h3: ({ node, ...props }) => <h3 className="text-sm font-semibold text-cyan-300" {...props} />,
-                            h4: ({ node, ...props }) => <h4 className="text-sm font-semibold text-cyan-300" {...props} />,
-                            ul: ({ node, ...props }) => <ul className="list-disc pl-5 space-y-1 text-sm text-slate-300" {...props} />,
-                            ol: ({ node, ...props }) => <ol className="list-decimal pl-5 space-y-1 text-sm text-slate-300" {...props} />,
-                            code: ({ node, inline, ...props }) => (
-                              inline 
-                                ? <code className="bg-slate-800 text-cyan-300 px-1 py-0.5 rounded text-xs" {...props} /> 
-                                : <pre className="font-mono bg-slate-900 p-2 rounded text-xs overflow-x-auto text-slate-300 mt-2 mb-2"><code {...props} /></pre>
-                            ),
-                          }}
-                        >
-                          {explanations[result.id]}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  )}
                 </div>
-              )}
-            </div>
+                <div className="space-y-1 text-xs text-gray-400">
+                  {result.input != null && (
+                    <p>
+                      <span className="text-gray-500">Input: </span>
+                      {result.input}
+                    </p>
+                  )}
+                  {result.expectedOutput != null && (
+                    <p>
+                      <span className="text-gray-500">Expected: </span>
+                      {result.expectedOutput}
+                    </p>
+                  )}
+                  {result.actualOutput != null && (
+                    <p>
+                      <span className="text-gray-500">Output: </span>
+                      {result.actualOutput}
+                    </p>
+                  )}
+                  <p>
+                    <span className="text-gray-500">Result: </span>
+                    <span
+                      className={
+                        result.status === "pass"
+                          ? "text-emerald-400"
+                          : result.status === "fail"
+                            ? "text-red-400"
+                            : "text-gray-400"
+                      }
+                    >
+                      {result.status === "pass"
+                        ? "PASS"
+                        : result.status === "fail"
+                          ? "FAIL"
+                          : "Pending"}
+                    </span>
+                  </p>
+                </div>
+                {result.status === "fail" && (
+                  <div className="mt-2">
+                    <button
+                      onClick={() => handleExplainError(result)}
+                      disabled={loadingIds.has(result.id)}
+                      className="rounded border border-amber-600 bg-transparent px-3 py-1.5 text-xs font-medium text-amber-400 transition-colors hover:bg-amber-600/20 disabled:opacity-50"
+                    >
+                      {loadingIds.has(result.id)
+                        ? "Loading..."
+                        : "Explain Error"}
+                    </button>
+                    {explanations[result.id] && (
+                      <div className="mt-2 rounded border border-[#333] bg-[#1e1e1e] p-2">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-cyan-400">
+                          AI Explanation:
+                        </p>
+                        <div className="bg-[#0f2438] border border-slate-700 rounded-lg p-4 space-y-3">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              p: ({ node, ...props }) => <p className="text-sm text-slate-300 leading-relaxed" {...props} />,
+                              h3: ({ node, ...props }) => <h3 className="text-sm font-semibold text-cyan-300" {...props} />,
+                              h4: ({ node, ...props }) => <h4 className="text-sm font-semibold text-cyan-300" {...props} />,
+                              ul: ({ node, ...props }) => <ul className="list-disc pl-5 space-y-1 text-sm text-slate-300" {...props} />,
+                              ol: ({ node, ...props }) => <ol className="list-decimal pl-5 space-y-1 text-sm text-slate-300" {...props} />,
+                              code: ({ node, inline, ...props }: any) => (
+                                inline
+                                  ? <code className="bg-slate-800 text-cyan-300 px-1 py-0.5 rounded text-xs" {...props} />
+                                  : <pre className="font-mono bg-slate-900 p-2 rounded text-xs overflow-x-auto text-slate-300 mt-2 mb-2"><code {...props} /></pre>
+                              ),
+                            }}
+                          >
+                            {explanations[result.id]}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </LearningPanelContainer>
@@ -330,7 +329,7 @@ export default function ConsoleOutput({
               <div className="flex flex-col gap-4">
                 {sections.map((section, idx) => (
                   <div key={idx} className="bg-[#0f2438] border border-slate-700 rounded-lg p-4 space-y-3">
-                    <ReactMarkdown 
+                    <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
                         h2: ({ node, ...props }) => <h2 className="text-sm font-semibold text-cyan-300" {...props} />,
@@ -339,9 +338,9 @@ export default function ConsoleOutput({
                         p: ({ node, ...props }) => <p className="text-sm text-slate-300 leading-relaxed" {...props} />,
                         ul: ({ node, ...props }) => <ul className="list-disc pl-5 space-y-2 text-sm text-slate-300" {...props} />,
                         ol: ({ node, ...props }) => <ol className="list-decimal pl-5 space-y-2 text-sm text-slate-300" {...props} />,
-                        code: ({ node, inline, ...props }) => (
-                          inline 
-                            ? <code className="bg-slate-800 text-cyan-300 px-1 py-0.5 rounded text-xs" {...props} /> 
+                        code: ({ node, inline, ...props }: any) => (
+                          inline
+                            ? <code className="bg-slate-800 text-cyan-300 px-1 py-0.5 rounded text-xs" {...props} />
                             : <pre className="font-mono bg-slate-900 p-3 rounded-md text-xs overflow-x-auto text-slate-300 mt-2 mb-2"><code {...props} /></pre>
                         ),
                       }}
@@ -359,146 +358,146 @@ export default function ConsoleOutput({
             )}
           </div>
 
-        {showComplexityGraph && detectedComplexity && (
-          <div className="rounded-xl border border-slate-700 bg-[#0f2438] p-5 shadow-lg">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <p className="mb-1 text-base font-semibold text-slate-100">
-                  Time Complexity Graph
-                </p>
-                <p className="text-sm text-slate-400">
-                  Estimated operation counts as input size (n) increases.
-                </p>
-              </div>
-              {detectedName !== "Unknown" && (
-                <div className="flex flex-col items-end">
-                  <span className="text-xs text-slate-400 mb-1">Detected</span>
-                  <div className="rounded-full bg-slate-800 px-3 py-1 font-mono text-sm font-semibold text-cyan-300 ring-1 ring-cyan-500/30">
-                    {detectedName}
+          {showComplexityGraph && detectedComplexity && (
+            <div className="rounded-xl border border-slate-700 bg-[#0f2438] p-5 shadow-lg">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="mb-1 text-base font-semibold text-slate-100">
+                    Time Complexity Graph
+                  </p>
+                  <p className="text-sm text-slate-400">
+                    Estimated operation counts as input size (n) increases.
+                  </p>
+                </div>
+                {detectedName !== "Unknown" && (
+                  <div className="flex flex-col items-end">
+                    <span className="text-xs text-slate-400 mb-1">Detected</span>
+                    <div className="rounded-full bg-slate-800 px-3 py-1 font-mono text-sm font-semibold text-cyan-300 ring-1 ring-cyan-500/30">
+                      {detectedName}
+                    </div>
                   </div>
+                )}
+              </div>
+
+              {explanationText && (
+                <div className="mb-6 rounded bg-slate-800/50 p-3 border border-slate-700/50">
+                  <p className="text-sm text-slate-300">
+                    <strong className="text-cyan-300 font-medium">Explanation: </strong>
+                    {explanationText}
+                  </p>
                 </div>
               )}
-            </div>
 
-            {explanationText && (
-              <div className="mb-6 rounded bg-slate-800/50 p-3 border border-slate-700/50">
-                <p className="text-sm text-slate-300">
-                  <strong className="text-cyan-300 font-medium">Explanation: </strong>
-                  {explanationText}
-                </p>
-              </div>
-            )}
-            
-            <ResponsiveContainer width="100%" height={240}>
-              <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                <CartesianGrid stroke="#1e293b" strokeDasharray="4 4" vertical={false} />
-                <XAxis
-                  dataKey="n"
-                  stroke="#64748b"
-                  tick={{ fill: "#94a3b8", fontSize: 12 }}
-                  tickLine={false}
-                  axisLine={{ stroke: "#334155" }}
-                  label={{ value: "Input Size (n)", position: "insideBottomRight", offset: -5, fill: "#94a3b8", fontSize: 12 }}
-                />
-                <YAxis
-                  stroke="#64748b"
-                  tick={{ fill: "#94a3b8", fontSize: 12 }}
-                  tickLine={false}
-                  axisLine={{ stroke: "#334155" }}
-                  label={{ value: "Estimated Operations", angle: -90, position: "insideLeft", offset: 0, fill: "#94a3b8", fontSize: 12 }}
-                />
-                <Tooltip
-                  cursor={{ stroke: "#475569", strokeWidth: 1, strokeDasharray: "4 4" }}
-                  contentStyle={{
-                    backgroundColor: "#0f172a",
-                    border: "1px solid #1e293b",
-                    borderRadius: "8px",
-                    color: "#f8fafc",
-                    fontSize: "13px",
-                    padding: "12px",
-                    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.5)"
-                  }}
-                  itemStyle={{ paddingBottom: "4px" }}
-                  labelStyle={{ fontWeight: "600", marginBottom: "8px", color: "#94a3b8", paddingBottom: "8px", borderBottom: "1px solid #1e293b" }}
-                  formatter={(value: number, name: string) => [
-                    `${value.toLocaleString()} operations`, 
-                    name
-                  ]}
-                  labelFormatter={(label) => `Input Size (n): ${label}`}
-                />
-                <Legend
-                  wrapperStyle={{ fontSize: 12, color: "#cbd5e1", paddingTop: "15px" }}
-                  iconType="circle"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="O(1)"
-                  stroke="#d946ef"
-                  strokeWidth={isO1 ? 4 : 2}
-                  strokeOpacity={isO1 ? 1 : 0.25}
-                  dot={false}
-                  isAnimationActive={true}
-                  animationDuration={1500}
-                  animationEasing="ease-out"
-                  activeDot={{ r: 6, strokeWidth: 0, fill: "#d946ef" }}
-                  style={isO1 ? { filter: "drop-shadow(0 0 6px rgba(217, 70, 239, 0.5))" } : {}}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="O(log n)"
-                  stroke="#06b6d4"
-                  strokeWidth={isLogN ? 4 : 2}
-                  strokeOpacity={isLogN ? 1 : 0.25}
-                  dot={false}
-                  isAnimationActive={true}
-                  animationDuration={1600}
-                  animationEasing="ease-out"
-                  activeDot={{ r: 6, strokeWidth: 0, fill: "#06b6d4" }}
-                  style={isLogN ? { filter: "drop-shadow(0 0 6px rgba(6, 182, 212, 0.5))" } : {}}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="O(n)"
-                  stroke="#22c55e"
-                  strokeWidth={isN ? 4 : 2}
-                  strokeOpacity={isN ? 1 : 0.25}
-                  dot={false}
-                  isAnimationActive={true}
-                  animationDuration={1700}
-                  animationEasing="ease-out"
-                  activeDot={{ r: 6, strokeWidth: 0, fill: "#22c55e" }}
-                  style={isN ? { filter: "drop-shadow(0 0 6px rgba(34, 197, 94, 0.5))" } : {}}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="O(n log n)"
-                  stroke="#eab308"
-                  strokeWidth={isNLogN ? 4 : 2}
-                  strokeOpacity={isNLogN ? 1 : 0.25}
-                  dot={false}
-                  isAnimationActive={true}
-                  animationDuration={1800}
-                  animationEasing="ease-out"
-                  activeDot={{ r: 6, strokeWidth: 0, fill: "#eab308" }}
-                  style={isNLogN ? { filter: "drop-shadow(0 0 6px rgba(234, 179, 8, 0.5))" } : {}}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="O(n^2)"
-                  stroke="#ef4444"
-                  strokeWidth={isN2 ? 4 : 2}
-                  strokeOpacity={isN2 ? 1 : 0.25}
-                  dot={false}
-                  isAnimationActive={true}
-                  animationDuration={1900}
-                  animationEasing="ease-out"
-                  activeDot={{ r: 6, strokeWidth: 0, fill: "#ef4444" }}
-                  style={isN2 ? { filter: "drop-shadow(0 0 6px rgba(239, 68, 68, 0.5))" } : {}}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+              <ResponsiveContainer width="100%" height={240}>
+                <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                  <CartesianGrid stroke="#1e293b" strokeDasharray="4 4" vertical={false} />
+                  <XAxis
+                    dataKey="n"
+                    stroke="#64748b"
+                    tick={{ fill: "#94a3b8", fontSize: 12 }}
+                    tickLine={false}
+                    axisLine={{ stroke: "#334155" }}
+                    label={{ value: "Input Size (n)", position: "insideBottomRight", offset: -5, fill: "#94a3b8", fontSize: 12 }}
+                  />
+                  <YAxis
+                    stroke="#64748b"
+                    tick={{ fill: "#94a3b8", fontSize: 12 }}
+                    tickLine={false}
+                    axisLine={{ stroke: "#334155" }}
+                    label={{ value: "Estimated Operations", angle: -90, position: "insideLeft", offset: 0, fill: "#94a3b8", fontSize: 12 }}
+                  />
+                  <Tooltip
+                    cursor={{ stroke: "#475569", strokeWidth: 1, strokeDasharray: "4 4" }}
+                    contentStyle={{
+                      backgroundColor: "#0f172a",
+                      border: "1px solid #1e293b",
+                      borderRadius: "8px",
+                      color: "#f8fafc",
+                      fontSize: "13px",
+                      padding: "12px",
+                      boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.5)"
+                    }}
+                    itemStyle={{ paddingBottom: "4px" }}
+                    labelStyle={{ fontWeight: "600", marginBottom: "8px", color: "#94a3b8", paddingBottom: "8px", borderBottom: "1px solid #1e293b" }}
+                    formatter={(value: number, name: string) => [
+                      `${value.toLocaleString()} operations`,
+                      name
+                    ]}
+                    labelFormatter={(label) => `Input Size (n): ${label}`}
+                  />
+                  <Legend
+                    wrapperStyle={{ fontSize: 12, color: "#cbd5e1", paddingTop: "15px" }}
+                    iconType="circle"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="O(1)"
+                    stroke="#d946ef"
+                    strokeWidth={isO1 ? 4 : 2}
+                    strokeOpacity={isO1 ? 1 : 0.25}
+                    dot={false}
+                    isAnimationActive={true}
+                    animationDuration={1500}
+                    animationEasing="ease-out"
+                    activeDot={{ r: 6, strokeWidth: 0, fill: "#d946ef" }}
+                    style={isO1 ? { filter: "drop-shadow(0 0 6px rgba(217, 70, 239, 0.5))" } : {}}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="O(log n)"
+                    stroke="#06b6d4"
+                    strokeWidth={isLogN ? 4 : 2}
+                    strokeOpacity={isLogN ? 1 : 0.25}
+                    dot={false}
+                    isAnimationActive={true}
+                    animationDuration={1600}
+                    animationEasing="ease-out"
+                    activeDot={{ r: 6, strokeWidth: 0, fill: "#06b6d4" }}
+                    style={isLogN ? { filter: "drop-shadow(0 0 6px rgba(6, 182, 212, 0.5))" } : {}}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="O(n)"
+                    stroke="#22c55e"
+                    strokeWidth={isN ? 4 : 2}
+                    strokeOpacity={isN ? 1 : 0.25}
+                    dot={false}
+                    isAnimationActive={true}
+                    animationDuration={1700}
+                    animationEasing="ease-out"
+                    activeDot={{ r: 6, strokeWidth: 0, fill: "#22c55e" }}
+                    style={isN ? { filter: "drop-shadow(0 0 6px rgba(34, 197, 94, 0.5))" } : {}}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="O(n log n)"
+                    stroke="#eab308"
+                    strokeWidth={isNLogN ? 4 : 2}
+                    strokeOpacity={isNLogN ? 1 : 0.25}
+                    dot={false}
+                    isAnimationActive={true}
+                    animationDuration={1800}
+                    animationEasing="ease-out"
+                    activeDot={{ r: 6, strokeWidth: 0, fill: "#eab308" }}
+                    style={isNLogN ? { filter: "drop-shadow(0 0 6px rgba(234, 179, 8, 0.5))" } : {}}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="O(n^2)"
+                    stroke="#ef4444"
+                    strokeWidth={isN2 ? 4 : 2}
+                    strokeOpacity={isN2 ? 1 : 0.25}
+                    dot={false}
+                    isAnimationActive={true}
+                    animationDuration={1900}
+                    animationEasing="ease-out"
+                    activeDot={{ r: 6, strokeWidth: 0, fill: "#ef4444" }}
+                    style={isN2 ? { filter: "drop-shadow(0 0 6px rgba(239, 68, 68, 0.5))" } : {}}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       </LearningPanelContainer>
     );
@@ -520,13 +519,13 @@ export default function ConsoleOutput({
           </div>
           <div className="w-full">
             {edgeCases ? (
-              <ReactMarkdown 
+              <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  ol: ({ node, ...props }) => <div className="flex flex-col gap-4" {...props} />,
-                  ul: ({ node, ...props }) => <div className="flex flex-col gap-4" {...props} />,
-                  li: ({ node, ...props }) => (
-                    <div className="bg-[#0f2438] border border-slate-700 rounded-lg p-5 space-y-4" {...props} />
+                  ol: ({ node, ...props }: any) => <ol className="flex flex-col gap-4 list-decimal pl-5" {...props} />,
+                  ul: ({ node, ...props }: any) => <ul className="flex flex-col gap-4 list-disc pl-5" {...props} />,
+                  li: ({ node, ...props }: any) => (
+                    <li className="bg-[#0f2438] border border-slate-700 rounded-lg p-5 space-y-4 marker:text-transparent list-none" {...props} />
                   ),
                   strong: ({ node, children, ...props }) => (
                     <strong className="text-base font-semibold text-white" {...props}>{children}</strong>
@@ -534,9 +533,9 @@ export default function ConsoleOutput({
                   pre: ({ node, ...props }) => (
                     <pre className="font-mono bg-slate-900 p-3 rounded-md text-xs overflow-x-auto text-slate-300 my-2" {...props} />
                   ),
-                  code: ({ node, inline, ...props }) => (
-                    inline 
-                      ? <code className="bg-slate-800 text-cyan-300 px-1 py-0.5 rounded text-xs" {...props} /> 
+                  code: ({ node, inline, ...props }: any) => (
+                    inline
+                      ? <code className="bg-slate-800 text-cyan-300 px-1 py-0.5 rounded text-xs" {...props} />
                       : <code {...props} />
                   ),
                   p: ({ node, ...props }) => <p className="text-sm text-slate-300 leading-relaxed" {...props} />,
@@ -570,47 +569,47 @@ export default function ConsoleOutput({
             </button>
           </div>
           <div className="min-h-0 flex-1 overflow-hidden rounded border border-[#333] bg-[#111827] flex flex-col">
-          {!flowchartData && !isGeneratingFlowchart && (
-            <p className="text-gray-600 p-3">
-              Click &quot;Generate Flowchart&quot; to create a flowchart breakdown of this algorithm.
-            </p>
-          )}
-          {isGeneratingFlowchart && <p className="text-gray-500 p-3">Generating flowchart with AI...</p>}
-          
-          {flowchartData && (
-            <div className="flex flex-col h-full min-h-0">
-              <div className="flex-1 min-h-0 relative bg-[#0d1117] border-b border-[#333] overflow-hidden">
-                <TransformWrapper
-                  initialScale={1}
-                  minScale={0.1}
-                  maxScale={8}
-                  centerOnInit={true}
-                  wheel={{ step: 0.1 }}
-                >
-                  {({ zoomIn, zoomOut, resetTransform }) => (
-                    <>
-                      <div className="absolute top-2 right-2 z-10 flex gap-2">
-                        <button onClick={() => zoomIn()} className="rounded bg-[#1f2937] px-2 py-1 text-xs text-gray-300 hover:bg-[#374151] border border-[#4b5563]">Zoom In</button>
-                        <button onClick={() => zoomOut()} className="rounded bg-[#1f2937] px-2 py-1 text-xs text-gray-300 hover:bg-[#374151] border border-[#4b5563]">Zoom Out</button>
-                        <button onClick={() => resetTransform()} className="rounded bg-[#1f2937] px-2 py-1 text-xs text-gray-300 hover:bg-[#374151] border border-[#4b5563]">Reset View</button>
-                        <button onClick={() => setIsFullscreen(true)} className="rounded bg-violet-600/20 px-2 py-1 text-xs text-violet-300 hover:bg-violet-600/40 border border-violet-600/50">Fullscreen</button>
-                      </div>
-                      <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }} contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <div ref={mermaidRef} className="mermaid-container w-full h-full flex items-center justify-center p-4" />
-                      </TransformComponent>
-                    </>
-                  )}
-                </TransformWrapper>
+            {!flowchartData && !isGeneratingFlowchart && (
+              <p className="text-gray-600 p-3">
+                Click &quot;Generate Flowchart&quot; to create a flowchart breakdown of this algorithm.
+              </p>
+            )}
+            {isGeneratingFlowchart && <p className="text-gray-500 p-3">Generating flowchart with AI...</p>}
+
+            {flowchartData && (
+              <div className="flex flex-col h-full min-h-0">
+                <div className="flex-1 min-h-0 relative bg-[#0d1117] border-b border-[#333] overflow-hidden">
+                  <TransformWrapper
+                    initialScale={1}
+                    minScale={0.1}
+                    maxScale={8}
+                    centerOnInit={true}
+                    wheel={{ step: 0.1 }}
+                  >
+                    {({ zoomIn, zoomOut, resetTransform }) => (
+                      <>
+                        <div className="absolute top-2 right-2 z-10 flex gap-2">
+                          <button onClick={() => zoomIn()} className="rounded bg-[#1f2937] px-2 py-1 text-xs text-gray-300 hover:bg-[#374151] border border-[#4b5563]">Zoom In</button>
+                          <button onClick={() => zoomOut()} className="rounded bg-[#1f2937] px-2 py-1 text-xs text-gray-300 hover:bg-[#374151] border border-[#4b5563]">Zoom Out</button>
+                          <button onClick={() => resetTransform()} className="rounded bg-[#1f2937] px-2 py-1 text-xs text-gray-300 hover:bg-[#374151] border border-[#4b5563]">Reset View</button>
+                          <button onClick={() => setIsFullscreen(true)} className="rounded bg-violet-600/20 px-2 py-1 text-xs text-violet-300 hover:bg-violet-600/40 border border-violet-600/50">Fullscreen</button>
+                        </div>
+                        <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }} contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <div ref={mermaidRef} className="mermaid-container w-full h-full flex items-center justify-center p-4" />
+                        </TransformComponent>
+                      </>
+                    )}
+                  </TransformWrapper>
+                </div>
+                <div className="shrink-0 p-4 bg-[#1f2937] max-h-[40%] overflow-y-auto w-full">
+                  <h3 className="text-sm font-bold text-violet-400 mb-2">Explanation</h3>
+                  <pre className="whitespace-pre-wrap text-sm text-gray-300 font-sans">
+                    {flowchartData.explanation}
+                  </pre>
+                </div>
               </div>
-              <div className="shrink-0 p-4 bg-[#1f2937] max-h-[40%] overflow-y-auto w-full">
-                <h3 className="text-sm font-bold text-violet-400 mb-2">Explanation</h3>
-                <pre className="whitespace-pre-wrap text-sm text-gray-300 font-sans">
-                  {flowchartData.explanation}
-                </pre>
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
         </div>
       </LearningPanelContainer>
     );
@@ -624,44 +623,40 @@ export default function ConsoleOutput({
           <button
             type="button"
             onClick={() => setActiveTab("console")}
-            className={`px-4 py-2 text-sm rounded-md transition-colors ${
-              activeTab === "console"
+            className={`px-4 py-2 text-sm rounded-md transition-colors ${activeTab === "console"
                 ? "bg-[#122c44] text-cyan-300"
                 : "text-slate-400 hover:text-slate-200 hover:bg-[#2d3748]"
-            }`}
+              }`}
           >
             Console
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("ai")}
-            className={`px-4 py-2 text-sm rounded-md transition-colors ${
-              activeTab === "ai"
+            className={`px-4 py-2 text-sm rounded-md transition-colors ${activeTab === "ai"
                 ? "bg-[#122c44] text-cyan-300"
                 : "text-slate-400 hover:text-slate-200 hover:bg-[#2d3748]"
-            }`}
+              }`}
           >
             AI Feedback
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("edges")}
-            className={`px-4 py-2 text-sm rounded-md transition-colors ${
-              activeTab === "edges"
+            className={`px-4 py-2 text-sm rounded-md transition-colors ${activeTab === "edges"
                 ? "bg-[#122c44] text-cyan-300"
                 : "text-slate-400 hover:text-slate-200 hover:bg-[#2d3748]"
-            }`}
+              }`}
           >
             Edge Cases
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("visualizer")}
-            className={`px-4 py-2 text-sm rounded-md transition-colors ${
-              activeTab === "visualizer"
+            className={`px-4 py-2 text-sm rounded-md transition-colors ${activeTab === "visualizer"
                 ? "bg-[#122c44] text-cyan-300"
                 : "text-slate-400 hover:text-slate-200 hover:bg-[#2d3748]"
-            }`}
+              }`}
           >
             Visualizer
           </button>
@@ -695,10 +690,10 @@ export default function ConsoleOutput({
                 className="rounded text-gray-400 hover:text-white hover:bg-[#333] p-1.5 transition-colors"
                 title="Close Fullscreen"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
               </button>
             </div>
-            
+
             <div className="flex-1 min-h-0 relative">
               <TransformWrapper
                 initialScale={1}

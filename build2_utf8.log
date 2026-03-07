@@ -1,0 +1,132 @@
+﻿
+> ai-coding-mentor@0.1.0 build
+> next build
+
+  Γû▓ Next.js 14.2.18
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully
+   Linting and checking validity of types ...
+node.exe : Failed to compile.
+At C:\Program 
+Files\nodejs\npm.ps1:29 char:3
++   & $NODE_EXE $NPM_CLI_JS 
+$args
++   
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          :  
+   NotSpecified: (Failed to c  
+  ompile.:String) [], Remote   
+ Exception
+    + FullyQualifiedErrorId :  
+   NativeCommandError
+ 
+
+./components/ConsoleOutput.tsx:
+526:48
+Type error: Type '{ ref?: 
+LegacyRef<HTMLOListElement> | 
+undefined; key?: Key | null | 
+undefined; reversed?: boolean 
+| undefined; start?: number | 
+undefined; type?: "1" | ... 4 
+more ... | undefined; ... 276 
+more ...; 
+onTransitionStartCapture?: 
+TransitionEventHandler<...> | 
+undefined; }' is not 
+assignable to type 'DetailedHTM
+LProps<HTMLAttributes<HTMLDivEl
+ement>, HTMLDivElement>'.
+  Type '{ ref?: 
+LegacyRef<HTMLOListElement> | 
+undefined; key?: Key | null | 
+undefined; reversed?: boolean 
+| undefined; start?: number | 
+undefined; type?: "1" | ... 4 
+more ... | undefined; ... 276 
+more ...; 
+onTransitionStartCapture?: 
+TransitionEventHandler<...> | 
+undefined; }' is not 
+assignable to type 'ClassAttrib
+utes<HTMLDivElement>'.
+    Types of property 'ref' 
+are incompatible.
+      Type 
+'LegacyRef<HTMLOListElement> | 
+undefined' is not assignable 
+to type 
+'LegacyRef<HTMLDivElement> | 
+undefined'.
+        Type '(instance: 
+HTMLOListElement | null) => 
+void | (() => 
+VoidOrUndefinedOnly)' is not 
+assignable to type 
+'LegacyRef<HTMLDivElement> | 
+undefined'.
+          Type '(instance: 
+HTMLOListElement | null) => 
+void | (() => 
+VoidOrUndefinedOnly)' is not 
+assignable to type '(instance: 
+HTMLDivElement | null) => void 
+| (() => VoidOrUndefinedOnly)'.
+            Types of 
+parameters 'instance' and 
+'instance' are incompatible.
+              Type 
+'HTMLDivElement | null' is not 
+assignable to type 
+'HTMLOListElement | null'.
+                Type 
+'HTMLDivElement' is missing 
+the following properties from 
+type 'HTMLOListElement': 
+compact, reversed, start, type
+
+[0m [90m 524 |[39m          
+       remarkPlugins[33m=[39m
+{[remarkGfm]}[0m
+[0m [90m 525 |[39m          
+       
+components[33m=[39m{{[0m
+[0m[31m[1m>[22m[39m[90m 
+526 |[39m                   
+ol[33m:[39m ({ 
+node[33m,[39m 
+[33m...[39mprops }) 
+[33m=>[39m 
+[33m<[39m[33mdiv[39m 
+className[33m=[39m[32m"flex 
+flex-col gap-4"[39m 
+{[33m...[39mprops} [33m/[39
+m[33m>[39m[33m,[39m[0m
+[0m [90m     |[39m          
+                               
+       [31m[1m^[22m[39m[0m
+[0m [90m 527 |[39m          
+         ul[33m:[39m ({ 
+node[33m,[39m 
+[33m...[39mprops }) 
+[33m=>[39m 
+[33m<[39m[33mdiv[39m 
+className[33m=[39m[32m"flex 
+flex-col gap-4"[39m 
+{[33m...[39mprops} [33m/[39
+m[33m>[39m[33m,[39m[0m
+[0m [90m 528 |[39m          
+         li[33m:[39m ({ 
+node[33m,[39m 
+[33m...[39mprops }) 
+[33m=>[39m ([0m
+[0m [90m 529 |[39m          
+           
+[33m<[39m[33mdiv[39m classN
+ame[33m=[39m[32m"bg-[#0f2438
+] border border-slate-700 
+rounded-lg p-5 space-y-4"[39m 
+{[33m...[39mprops} 
+[33m/[39m[33m>[39m[0m
