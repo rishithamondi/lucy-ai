@@ -28,22 +28,27 @@ export async function POST(request: NextRequest) {
 
     const prompt = `You are an expert Data Structures and Algorithms mentor.
 
-Generate a universal algorithm flowchart for the provided code. The flowchart must work for any algorithm (loops, recursion, backtracking, graph traversal, etc.) without relying on specific types of visualizers.
+Generate a universal algorithm flowchart for the provided code. The flowchart must be structurally accurate and use strictly valid Mermaid.js syntax.
+
+Constraints for Mermaid Syntax:
+1. Start with "flowchart TD".
+2. Use alphanumeric node IDs only (e.g., A, B, C1, Step1). Do NOT use spaces or special characters in IDs.
+3. ALWAYS wrap all text labels in double quotes inside the shapes:
+   - Start/End: \`ID(["Start/End Label"])\`
+   - Process: \`ID["Process Description"]\`
+   - Decision: \`ID{"Decision Condition?"}\`
+   - I/O: \`ID[/"Input/Output"/]\`
+4. Avoid using any special characters like \`[\`, \`]\`, \`(\`, \`)\`, \`{\`, \`}\` inside the labels themselves unless they are properly escaped or enclosed in double quotes.
+5. Ensure logic flow is logical and follows the provided code.
 
 Return a JSON object with:
-1. "mermaid": The strict Mermaid syntax for the flowchart (e.g., "flowchart TD\\n...").
-   - VERY IMPORTANT: You MUST wrap all text labels in double quotes inside the node shapes to avoid syntax errors (e.g., \`A(["Start (array)"])\`, \`B[/"Read input"/]\`, \`C{"Check if nums[mid] == target"}\`).
-   - Use proper symbols: Oval for Start/End \`id(["label"])\`, Rectangle for Process \`id["label"]\`, Diamond for Condition \`id{"label"}\`, Parallelogram for Input/Output \`id[/"label"/]\`.
-   - Node IDs must be simple alphanumeric strings (A, B, C, id1, etc.). Do NOT use special characters in node IDs.
-   - Do not wrap the mermaid string in \`\`\`mermaid or \`\`\`.
-2. "explanation": A detailed explanation of the flowchart step-by-step.
+1. "mermaid": The raw Mermaid syntax string.
+2. "explanation": A concise step-by-step description of the logic flow.
 
-Ensure the "mermaid" field ONLY contains the raw valid mermaid string.
-
-Return JSON in this format:
+Return format:
 {
-  "mermaid": "flowchart TD\\nA([\\"Start\\"]) --> B[/\\"Read input\\"/]\\nB --> C{\\"Check condition\\"}\\nC -->|True| D[\\"Execute logic\\"]\\nC -->|False| E([\\"Return result\\"])",
-  "explanation": "1. We start by...\\n2. Then we check..."
+  "mermaid": "flowchart TD...",
+  "explanation": "1. ...\\n2. ..."
 }
 
 Problem:

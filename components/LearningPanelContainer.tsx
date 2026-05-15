@@ -15,7 +15,7 @@ export default function LearningPanelContainer({ children }: LearningPanelContai
   }, [children]);
 
   return (
-    <div className="w-full h-full bg-[#0b1c2c] border border-slate-700 rounded-xl p-5 text-slate-200 font-sans">
+    <div className="w-full h-full bg-[#161b22] border border-white/5 rounded-xl p-5 text-slate-200 font-sans relative overflow-hidden">
       <div 
         ref={containerRef}
         className="flex flex-col gap-6 overflow-y-auto h-full max-h-full break-words"

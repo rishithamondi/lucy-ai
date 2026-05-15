@@ -31,7 +31,6 @@ export async function POST(request: NextRequest) {
     const prompt = `You are an expert programming mentor.
 
 A student is solving this problem:
-
 ${problem}
 
 Their current code:
@@ -42,16 +41,27 @@ ${"```"}
 
 Language: ${language}
 
-Analyze the code and explain:
+Provide a **High Level Code Review** (Static Analysis). Structure your response with the following sections:
 
-1. Syntax mistakes
-2. Logical mistakes
-3. Possible edge cases missed
-4. Time complexity of their approach
-5. Suggestions for improvement
+### 1. Syntax Check
+Analyze if the code follows the language syntax rules and will compile/run.
 
-Do NOT provide the full solution.
-Explain clearly like a mentor guiding a student.`;
+### 2. Logical Mistakes
+Identify any logical errors or discrepancies compared to the problem requirements.
+
+### 3. Possible Edge Cases Missed
+Suggest specific inputs (e.g., empty array, large numbers, single element) that might break the current implementation.
+
+### 4. Time & Space Complexity
+Explain the O(n) time and space complexity based on the code structure (loops, recursion, storage).
+
+### 5. Suggestions for Improvement
+Recommend cleaner, more readable, or more efficient approaches without giving away the full optimized code immediately.
+
+Guidelines:
+- Do NOT provide the full solution code.
+- Be encouraging but technically precise.
+- Use clear, professional formatting.`;
 
     // If no AI key is configured, return a generic analysis-style message.
     if (!apiKey) {

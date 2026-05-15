@@ -2,10 +2,10 @@
 @plugin "@tailwindcss/typography";
 
 :root {
-  --background: #0d1117;
-  --foreground: #e6edf3;
-  --panel-bg: #161b22;
-  --border: #30363d;
+  --background: #0a0a0a;
+  --foreground: #e5e5e5;
+  --panel-bg: #1e1e1e;
+  --border: #2a2a2a;
 }
 
 @theme inline {
@@ -29,19 +29,30 @@ body {
 
 /* Custom scrollbar for dark theme */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1e1e1e;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #444;
-  border-radius: 4px;
+  background: #334155;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: #475569;
+  border: 1px solid transparent;
+  background-clip: content-box;
 }
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent;
+}
+

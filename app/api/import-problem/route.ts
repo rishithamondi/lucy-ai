@@ -4,16 +4,45 @@ type ImportProblemRequest = {
   problemText?: string;
 };
 
+type StarterCode = {
+  c?: string;
+  cpp?: string;
+  java?: string;
+  python?: string;
+  python3?: string;
+  javascript?: string;
+  typescript?: string;
+  csharp?: string;
+};
+
 type ImportedProblem = {
   title: string;
   description: string;
   constraints: string[];
   examples: Array<{ input: string; output: string }>;
-  starter_code: {
-    python: string;
-    java: string;
-  };
+  starter_code: StarterCode;
 };
+
+/** Generic fallback stubs used when the AI omits a language */
+const genericStubs: Required<StarterCode> = {
+  c:          `void solution() {\n    // TODO: implement\n}`,
+  cpp:        `class Solution {\npublic:\n    void solution() {\n        // TODO: implement\n    }\n};`,
+  java:       `class Solution {\n    public void solution() {\n        // TODO: implement\n    }\n}`,
+  python:     `def solution():\n    # TODO: implement\n    pass`,
+  python3:    `def solution():\n    # TODO: implement\n    pass`,
+  javascript: `function solution() {\n    // TODO: implement\n}`,
+  typescript: `function solution(): void {\n    // TODO: implement\n}`,
+  csharp:     `public class Solution {\n    public void SolutionMethod() {\n        // TODO: implement\n    }\n}`,
+};
+
+/** Fill any missing language with a generic stub */
+function mergeWithFallbacks(starter: StarterCode): Required<StarterCode> {
+  const out: any = {};
+  for (const lang of Object.keys(genericStubs) as Array<keyof StarterCode>) {
+    out[lang] = starter[lang] && starter[lang]!.trim() ? starter[lang] : genericStubs[lang];
+  }
+  return out as Required<StarterCode>;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,23 +66,24 @@ export async function POST(request: NextRequest) {
         description: problemText.trim(),
         constraints: [],
         examples: [],
-        starter_code: {
-          python: `def solution():
-    # TODO: implement
-    pass`,
-          java: `class Solution {
-    public void solution() {
-        // TODO: implement
-    }
-}`,
-        },
+        starter_code: genericStubs,
       };
 
       return NextResponse.json(fallback);
     }
 
-    const systemPrompt =
-      "You are a coding problem parser. Given a competitive programming / LeetCode-style problem statement, extract a concise title, description, constraints list, examples, and starter code for Python and Java.\n\nIMPORTANT RULES FOR STARTER CODE:\n- DO NOT include a full solution.\n- Only provide function/class SIGNATURES with empty bodies and TODO comments.\n- For Python, body should be either `pass` or a placeholder like `raise NotImplementedError()`.\n- For Java, body should contain only placeholder code (e.g. `// TODO` and a dummy return like `return 0;` or `return new int[]{};`).\n\nRespond with STRICT JSON only, matching this TypeScript type exactly (no markdown, no commentary): {\"title\": string, \"description\": string, \"constraints\": string[], \"examples\": {\"input\": string, \"output\": string}[], \"starter_code\": {\"python\": string, \"java\": string}}.";
+    const systemPrompt = `You are a coding problem parser. Given a competitive programming / LeetCode-style problem statement, extract a concise title, description, constraints list, examples, and starter code for C, C++, Java, Python, Python3, JavaScript, TypeScript, and C#.
+
+IMPORTANT RULES FOR STARTER CODE:
+- Extract the REAL function/class signature that matches the problem (do NOT use generic "solution()" names).
+- DO NOT include a full solution. Only provide function/class SIGNATURES with empty bodies and a "// TODO: implement" comment.
+- For Python/Python3: body should only contain "pass".
+- For Java/C#: include the correct return type and a dummy return statement if needed.
+- For JavaScript/TypeScript: use the correct function name and parameter names from the problem.
+- Mirror LeetCode style exactly.
+
+Respond with STRICT JSON only (no markdown fences, no commentary) matching this shape:
+{"title": string, "description": string, "constraints": string[], "examples": [{"input": string, "output": string}], "starter_code": {"c": string, "cpp": string, "java": string, "python": string, "python3": string, "javascript": string, "typescript": string, "csharp": string}}`;
 
     const userPrompt = `Problem statement:
 
@@ -77,7 +107,7 @@ Return ONLY the JSON object.`;
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          max_tokens: 800,
+          max_tokens: 2500,
         }),
       }
     );
@@ -92,7 +122,7 @@ Return ONLY the JSON object.`;
     }
 
     const data = await response.json();
-    const content: string | undefined =
+    let content: string | undefined =
       data.choices?.[0]?.message?.content?.trim();
 
     if (!content) {
@@ -101,6 +131,9 @@ Return ONLY the JSON object.`;
         { status: 500 }
       );
     }
+
+    // Strip markdown code fences if the model wraps its JSON
+    content = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 
     let parsed: ImportedProblem;
     try {
@@ -112,6 +145,9 @@ Return ONLY the JSON object.`;
         { status: 500 }
       );
     }
+
+    // Always ensure every language has at least a stub
+    parsed.starter_code = mergeWithFallbacks(parsed.starter_code ?? {});
 
     return NextResponse.json(parsed);
   } catch (error) {

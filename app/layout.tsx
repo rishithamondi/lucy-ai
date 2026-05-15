@@ -8,8 +8,11 @@ const fontMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Coding Mentor",
+  title: "Lucy AI - Coding Mentor",
   description: "Practice coding problems with AI guidance",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({

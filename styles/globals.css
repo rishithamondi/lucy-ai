@@ -2,17 +2,43 @@
 @plugin "@tailwindcss/typography";
 
 :root {
-  --background: #0d1117;
+  --background: #0f172a; /* Professional dark blue-gray */
   --foreground: #e6edf3;
   --panel-bg: #161b22;
-  --border: #30363d;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-hover: rgba(255, 255, 255, 0.12);
+  --accent-glow: rgba(59, 130, 246, 0.05);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-border-subtle: var(--border);
   --font-sans: ui-sans-serif, system-ui, sans-serif, "Segoe UI", Roboto;
   --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
+}
+
+.subtle-glass {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  transition: all 0.15s ease;
+}
+
+.subtle-glass:hover {
+  border-color: var(--border-hover);
+  background: #1c2128;
+}
+
+.minimal-button {
+  background: #21262d;
+  border: 1px solid var(--border);
+  color: #c9d1d9;
+  transition: all 0.15s ease;
+}
+
+.minimal-button:hover {
+  background: #30363d;
+  border-color: #8b949e;
 }
 
 * {
