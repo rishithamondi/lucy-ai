@@ -5,32 +5,22 @@ import { motion } from "framer-motion";
 import type { EditorLanguage } from "./CodeEditor";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { UI_TOKENS } from "@/lib/theme";
 
-type ChatMessage = {
-  id: number;
-  role: "user" | "assistant";
-  content: string;
-};
+import type { InterviewMessage } from "@/types/interview";
 
 interface InterviewChatProps {
-  problem: string;
-  code: string;
-  language: EditorLanguage;
-  isProblemLoaded: boolean;
-  difficulty: string;
+  messages: InterviewMessage[];
+  onSendMessage: (msg: string, code?: string) => void;
+  isLoading: boolean;
 }
 
 export default function InterviewChat({
-  problem,
-  code,
-  language,
-  isProblemLoaded,
-  difficulty,
+  messages,
+  onSendMessage,
+  isLoading,
 }: InterviewChatProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  const [nextId, setNextId] = useState(1);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -39,132 +29,27 @@ export default function InterviewChat({
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isSending]);
-
-  // Initial greeting
-  useEffect(() => {
-    if (messages.length === 0) {
-      const startMsg: ChatMessage = {
-        id: 0,
-        role: "assistant",
-        content: `Welcome to the Interview Mode. We will be doing a ${difficulty.toUpperCase()} level interview. Please wait, starting the session...`
-      };
-      setMessages([startMsg]);
-      
-      // Auto-trigger the first message to AI to start the interview
-      const startInterviewAsync = async () => {
-        setIsSending(true);
-        try {
-          const res = await fetch("/api/ai-chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              problem,
-              code,
-              language,
-              message: "Start the interview.", // Hidden trigger message
-              history: [], // Send empty history to get the actual first question
-              isInterviewMode: true,
-              interviewDifficulty: difficulty,
-            }),
-          });
-          
-          if (!res.ok) throw new Error("Failed to start");
-          const data = await res.json();
-          const reply = data?.reply || "Could not start interview. Please try again.";
-          
-          setMessages([
-            {
-              id: 1,
-              role: "assistant",
-              content: reply,
-            }
-          ]);
-          setNextId(2);
-        } catch (err) {
-          console.error(err);
-          setMessages(prev => [
-             ...prev,
-            { id: 1, role: "assistant", content: "Error starting interview connection. Please refresh." }
-          ]);
-        } finally {
-          setIsSending(false);
-        }
-      };
-      
-      startInterviewAsync();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [difficulty]);
+  }, [messages, isLoading]);
 
   const handleSubmit = useCallback(
-    async (e?: FormEvent) => {
+    (e?: FormEvent) => {
       if (e) e.preventDefault();
       const trimmed = input.trim();
-      if (!trimmed || isSending) return;
+      if (!trimmed || isLoading) return;
 
-      const userMessage: ChatMessage = {
-        id: nextId,
-        role: "user",
-        content: trimmed,
-      };
-
-      setMessages((prev) => [...prev, userMessage]);
-      setNextId((id) => id + 1);
+      onSendMessage(trimmed);
       setInput("");
-      setIsSending(true);
-
-      try {
-        const res = await fetch("/api/ai-chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            problem,
-            code,
-            language,
-            message: trimmed,
-            history: messages,
-            isInterviewMode: true,
-            interviewDifficulty: difficulty,
-          }),
-        });
-
-        if (!res.ok) {
-          const errorMessage = "⚠️ Connection error. Please try again.";
-          const errorMsg: ChatMessage = { id: nextId + 1, role: "assistant", content: errorMessage };
-          setMessages((prev) => [...prev, errorMsg]);
-          setNextId(id => id + 2);
-          return;
-        }
-
-        const data = await res.json();
-        const reply = data?.reply || "⚠️ Error receiving response.";
-
-        const assistantMessage: ChatMessage = { id: nextId + 1, role: "assistant", content: reply };
-        setMessages((prev) => [...prev, assistantMessage]);
-        setNextId(id => id + 2);
-      } catch (err) {
-        console.error("[InterviewChat] Error:", err);
-        const errorMsg: ChatMessage = {
-          id: nextId + 1, role: "assistant",
-          content: "⚠️ Connection error.",
-        };
-        setMessages((prev) => [...prev, errorMsg]);
-        setNextId(id => id + 2);
-      } finally {
-        setIsSending(false);
-      }
     },
-    [input, isSending, nextId, problem, code, language, messages, difficulty]
+    [input, isLoading, onSendMessage]
   );
 
   return (
-    <div className="flex h-full flex-col bg-[#0F172A] border-l border-white/10">
+    <div className={`flex h-full flex-col ${UI_TOKENS.background.panel} border-l ${UI_TOKENS.border.primary}`}>
       {/* Messages Area */}
       <div className="flex-1 space-y-6 overflow-y-auto px-5 py-6 text-sm flex flex-col custom-scrollbar">
         {messages.map((msg, idx) => (
           <motion.div
-            key={msg.id}
+            key={idx}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05 }}
@@ -179,8 +64,8 @@ export default function InterviewChat({
               <div
                 className={`rounded-xl px-4 py-3 border transition-colors ${
                   msg.role === "user"
-                    ? "bg-slate-800/80 border-white/10 text-white rounded-tr-sm"
-                    : "bg-[#1c2128] border-white/5 text-slate-200 rounded-tl-sm"
+                    ? "bg-[#2a2a2a] border-[#3a3a3a] text-white rounded-tr-sm"
+                    : "bg-[#252526] border-[#3a3a3a] text-slate-200 rounded-tl-sm"
                 }`}
               >
                 <div className="prose prose-sm prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-[#0d1117] prose-pre:border prose-pre:border-slate-800 prose-code:text-emerald-300">
@@ -202,7 +87,7 @@ export default function InterviewChat({
           </motion.div>
         ))}
         
-        {isSending && (
+        {isLoading && (
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -212,7 +97,7 @@ export default function InterviewChat({
               <div className="flex items-center gap-2 mb-1.5 px-1">
                 <span className="text-[9px] text-slate-500 font-bold tracking-[0.1em] uppercase">LUCY</span>
               </div>
-              <div className="rounded-xl px-5 py-3 bg-[#1c2128] border border-white/5 text-slate-400 rounded-tl-sm text-xs flex items-center gap-4">
+              <div className="rounded-xl px-5 py-3 bg-[#252526] border border-[#3a3a3a] text-slate-400 rounded-tl-sm text-xs flex items-center gap-4">
                 <span className="italic font-medium">Lucy is evaluating</span>
                 <div className="flex gap-1.5 items-center">
                   {[0, 1, 2].map((i) => (
@@ -220,7 +105,7 @@ export default function InterviewChat({
                       key={i}
                       animate={{ opacity: [0.2, 1, 0.2] }}
                       transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2, ease: "easeInOut" }}
-                      className="w-1.5 h-1.5 bg-amber-500/70 rounded-full"
+                      className="w-1.5 h-1.5 bg-emerald-500/70 rounded-full"
                     />
                   ))}
                 </div>
@@ -232,23 +117,23 @@ export default function InterviewChat({
       </div>
 
       {/* Footer / Input Area */}
-      <div className="border-t border-white/10 bg-[#0B0F14] px-5 py-4">
+      <div className={`border-t ${UI_TOKENS.border.primary} ${UI_TOKENS.background.main} px-5 py-4`}>
         <form onSubmit={handleSubmit} className="relative flex items-center">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            disabled={isSending || messages.length === 0}
-            placeholder={isSending ? "Wait for Lucy..." : "Explain your reasoning..."}
-            className="w-full rounded-xl border border-white/10 bg-[#0F172A] pl-4 pr-12 py-3.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-amber-500/50 transition-colors disabled:opacity-50"
+            disabled={isLoading || messages.length === 0}
+            placeholder={isLoading ? "Wait for Lucy..." : "Explain your reasoning..."}
+            className={`w-full rounded-xl border ${UI_TOKENS.border.secondary} ${UI_TOKENS.background.input} pl-4 pr-12 py-3.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-emerald-500/50 transition-colors disabled:opacity-50`}
           />
           <button
             type="submit"
-            disabled={isSending || !input.trim()}
-            className="absolute right-2 flex w-9 h-9 items-center justify-center rounded-lg bg-amber-600/20 text-amber-500 hover:bg-amber-600/30 hover:text-amber-400 disabled:opacity-30 disabled:grayscale transition-colors"
+            disabled={isLoading || !input.trim()}
+            className={`absolute right-2 flex w-9 h-9 items-center justify-center rounded-lg ${UI_TOKENS.accent.emeraldBg} ${UI_TOKENS.accent.emerald} hover:bg-emerald-500/30 disabled:opacity-30 disabled:grayscale transition-colors`}
           >
-            {isSending ? (
-               <div className="h-4 w-4 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" />
+            {isLoading ? (
+               <div className="h-4 w-4 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
             ) : (
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
             )}

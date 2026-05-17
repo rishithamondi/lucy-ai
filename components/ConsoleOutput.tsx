@@ -7,7 +7,6 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
@@ -15,7 +14,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import LearningPanelContainer from "./LearningPanelContainer";
 
 export type TestResult = {
   id: number;
@@ -61,9 +59,11 @@ interface ConsoleOutputProps {
   } | null;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
+  isFullscreenMode?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
-const CenteredPanelContent = ({
+const CenteredPanelPlaceholder = ({
   icon,
   title,
   description,
@@ -79,58 +79,32 @@ const CenteredPanelContent = ({
     className?: string;
   };
 }) => (
-  <div className="h-full flex items-center justify-center animate-in fade-in duration-500">
-    <div className="flex flex-col items-center text-center">
-      {/* 1. Icon Container (Fixed 72x72) */}
-      <div className="relative">
-        <div className="relative h-[72px] w-[72px] rounded-[16px] bg-slate-800/20 flex items-center justify-center border border-[#3a3a3a]">
-          {React.isValidElement(icon) 
-            ? React.cloneElement(icon as React.ReactElement, { width: 28, height: 28, strokeWidth: 1.5 })
-            : icon}
-        </div>
+  <div className="h-full flex items-center justify-center p-6 text-center animate-in fade-in duration-300">
+    <div className="max-w-[400px] flex flex-col items-center">
+      <div className="text-neutral-500 mb-2">
+        {React.isValidElement(icon) 
+          ? React.cloneElement(icon as React.ReactElement, { width: 18, height: 18, strokeWidth: 1.5 })
+          : icon}
       </div>
-
-      {/* 2. Spacing (Fixed 18px) */}
-      <div className="h-[18px]" />
-
-      {/* 3. Title Slot (Fixed Height for stability) */}
-      <div className="h-[28px] flex items-center justify-center">
-        <h3 className="text-[20px] font-semibold text-white tracking-tight">
-          {title}
-        </h3>
-      </div>
-
-      {/* 4. Spacing (Fixed 10px) */}
-      <div className="h-[10px]" />
-
-      {/* 5. Description Slot (Fixed Height to absorb line wrapping) */}
-      <div className="h-[68px] max-w-[420px] flex items-center justify-center px-4">
-        <p className="text-[14px] text-neutral-400 leading-[1.6] opacity-80">
-          {description}
-        </p>
-      </div>
-
-      {/* 6. Spacing (Fixed 22px) */}
-      <div className="h-[22px]" />
-
-      {/* 7. Action Button Slot (Fixed Height to prevent layout shift) */}
-      <div className="h-[44px] flex items-center justify-center">
-        {button && (
-          <button
-            type="button"
-            onClick={button.onClick}
-            disabled={button.disabled}
-            className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors border border-[#3a3a3a] bg-[#333333] text-[#c9d1d9] hover:bg-[#404040] active:scale-95 ${button.className}`}
-          >
-            {button.label}
-          </button>
-        )}
-      </div>
+      <span className="text-[11px] font-bold text-neutral-300 tracking-wider uppercase mb-1">{title}</span>
+      <p className="text-[13px] text-neutral-500 leading-relaxed max-w-[320px] font-sans">
+        {description}
+      </p>
+      {button && (
+        <button
+          type="button"
+          onClick={button.onClick}
+          disabled={button.disabled}
+          className={`mt-3 px-3 py-1 rounded bg-[#252526] border border-[#2a2a2a] text-[10px] font-bold text-neutral-300 hover:bg-[#2a2a2b] hover:text-white transition-colors active:scale-95 ${button.className}`}
+        >
+          {button.label}
+        </button>
+      )}
     </div>
   </div>
 );
 
-const PanelCardLayout = ({
+const PanelFlatLayout = ({
   icon,
   title,
   description,
@@ -148,20 +122,18 @@ const PanelCardLayout = ({
   };
   children?: React.ReactNode;
 }) => (
-  <LearningPanelContainer>
-    <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-[#3a3a3a] bg-[#252526] flex flex-col relative h-full">
-      {children ? (
-        children
-      ) : (
-        <CenteredPanelContent
-          icon={icon}
-          title={title}
-          description={description}
-          button={button}
-        />
-      )}
-    </div>
-  </LearningPanelContainer>
+  <div className="flex flex-col h-full min-h-0 w-full">
+    {children ? (
+      children
+    ) : (
+      <CenteredPanelPlaceholder
+        icon={icon}
+        title={title}
+        description={description}
+        button={button}
+      />
+    )}
+  </div>
 );
 
 export default function ConsoleOutput({
@@ -188,6 +160,8 @@ export default function ConsoleOutput({
   codeAnalysis = null,
   isExpanded = false,
   onToggleExpand,
+  isFullscreenMode = false,
+  onToggleFullscreen,
 }: ConsoleOutputProps) {
   const [explanations, setExplanations] = useState<Record<number, string>>({});
   const [loadingIds, setLoadingIds] = useState<Set<number>>(new Set());
@@ -242,8 +216,6 @@ export default function ConsoleOutput({
     }));
   }, []);
 
-
-
   const handleExplainError = async (result: TestResult) => {
     if (result.status !== "fail" || !result.input || result.expectedOutput == null || result.actualOutput == null) return;
 
@@ -283,62 +255,52 @@ export default function ConsoleOutput({
     if (!showComplexityGraph || !chartData) return null;
 
     const dataKeys = ["O(1)", "O(log n)", "O(n)", "O(n log n)", "O(n^2)"];
-    const colors: Record<string, string> = {
-      "O(1)": "#a855f7",
-      "O(log n)": "#06b6d4",
-      "O(n)": "#10b981",
-      "O(n log n)": "#f59e0b",
-      "O(n^2)": "#ef4444",
-    };
 
     return (
-      <div className="bg-[#252526] border border-[#3a3a3a] rounded-xl p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-[#1a1a1a] border border-[#3a3a3a] rounded-lg p-4">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex flex-col">
-            <h4 className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Algorithmic Efficiency</h4>
-            <span className="text-xs text-neutral-400">Growth rate comparison</span>
+            <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-0.5">Algorithmic Efficiency</span>
+            <span className="text-[12px] text-neutral-400 font-sans">Growth rate comparison</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {dataKeys.map((key) => (
-              <div key={key} className="flex items-center gap-1.5">
-                <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: colors[key] }} />
+              <div key={key} className="flex items-center gap-1">
+                <div className={`h-1.5 w-1.5 rounded-full ${key === "O(n^2)" ? "bg-red-500" : "bg-emerald-500"}`} />
                 <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-tighter">{key}</span>
               </div>
             ))}
           </div>
         </div>
         
-        <div className="h-[220px] w-full">
+        <div className="h-[180px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+            <LineChart data={chartData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff03" vertical={false} />
               <XAxis 
                 dataKey="n" 
-                stroke="#64748b" 
-                fontSize={10} 
+                stroke="#404040" 
+                fontSize={9} 
                 tickLine={false} 
                 axisLine={false}
-                tick={{ fill: '#64748b' }}
-                label={{ value: 'Input Size (n)', position: 'insideBottom', offset: -5, fill: '#64748b', fontSize: 10 }}
+                tick={{ fill: '#666' }}
               />
               <YAxis 
-                stroke="#64748b" 
-                fontSize={10} 
+                stroke="#404040" 
+                fontSize={9} 
                 tickLine={false} 
                 axisLine={false}
-                tick={{ fill: '#64748b' }}
-                label={{ value: 'Operations', angle: -90, position: 'insideLeft', offset: 0, fill: '#64748b', fontSize: 10 }}
+                tick={{ fill: '#666' }}
               />
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: '#0d1117', 
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '12px',
+                  backgroundColor: '#0a0a0a', 
+                  border: '1px solid #3a3a3a',
+                  borderRadius: '6px',
                   fontSize: '11px',
-                  fontWeight: 'bold',
-                  boxShadow: '0 10px 15px -3px rgba(0,0,0,0.5)'
+                  fontFamily: 'sans-serif',
+                  color: '#fff'
                 }}
-                itemStyle={{ padding: '2px 0' }}
               />
               {dataKeys.map((key) => {
                 const isSelected = detectedComplexity === key;
@@ -347,11 +309,10 @@ export default function ConsoleOutput({
                     key={key}
                     type="monotone"
                     dataKey={key}
-                    stroke={colors[key]}
-                    strokeWidth={isSelected ? 2 : 1}
+                    stroke={key === "O(n^2)" ? "#ef4444" : "#10b981"}
+                    strokeWidth={isSelected ? 1.5 : 1}
                     dot={false}
-                    opacity={isSelected ? 1 : 0.2}
-                    animationDuration={1500}
+                    opacity={isSelected ? 1 : 0.15}
                   />
                 );
               })}
@@ -366,60 +327,55 @@ export default function ConsoleOutput({
     if (!codeAnalysis) return null;
 
     return (
-      <div className="mt-8 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="mt-4 border-t border-[#3a3a3a] pt-4 space-y-3">
         <div className="flex items-center gap-2 px-1">
-          <div className="h-4 w-1 rounded-full bg-[#30363d]" />
-          <h3 className="text-xs font-bold tracking-widest text-neutral-500 uppercase">Code Intelligence</h3>
+          <div className="h-3 w-1 rounded-full bg-emerald-500" />
+          <span className="text-[11px] font-bold tracking-wider text-neutral-400 uppercase">Code Intelligence</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {/* Pattern & Score */}
-          <div className="space-y-4">
-            <div className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl p-5 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v8"/><path d="m4.93 4.93 5.66 5.66"/><path d="M2 12h8"/><path d="m4.93 19.07 5.66-5.66"/><path d="M12 22v-8"/><path d="m19.07 19.07-5.66-5.66"/><path d="M22 12h-8"/><path d="m19.07 4.93-5.66 5.66"/></svg>
-              </div>
-              <div className="relative z-10">
-                <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter mb-1">Detected Pattern</p>
-                <div className="flex items-baseline gap-2">
-                  <h4 className="text-xl font-bold text-white">{codeAnalysis.pattern.name}</h4>
-                  <span className="text-[10px] font-bold text-neutral-400">{(codeAnalysis.pattern.confidence * 100).toFixed(0)}% Conf.</span>
-                </div>
+          <div className="space-y-3">
+            <div className="bg-[#1a1a1a] border border-[#3a3a3a] rounded-lg p-3 relative overflow-hidden">
+              <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-1">Detected Pattern</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-sm font-bold text-white">{codeAnalysis.pattern.name}</span>
+                <span className="text-[10px] font-bold text-neutral-500">{(codeAnalysis.pattern.confidence * 100).toFixed(0)}% confidence</span>
               </div>
             </div>
 
-            <div className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl p-5">
-              <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter mb-4">Complexity Analysis</p>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-[10px] text-neutral-400">Time</p>
-                  <p className="text-lg font-mono font-bold text-slate-200">{codeAnalysis.complexity.time}</p>
+            <div className="bg-[#1a1a1a] border border-[#3a3a3a] rounded-lg p-3">
+              <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-2">Complexity Analysis</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-[10px] text-neutral-500">Time</p>
+                  <p className="text-xs font-sans font-bold text-slate-200">{codeAnalysis.complexity.time}</p>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] text-neutral-400">Space</p>
-                  <p className="text-lg font-mono font-bold text-slate-200">{codeAnalysis.complexity.space}</p>
+                <div>
+                  <p className="text-[10px] text-neutral-500">Space</p>
+                  <p className="text-xs font-sans font-bold text-slate-200">{codeAnalysis.complexity.space}</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Quality & Issues */}
-          <div className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl p-5 space-y-4">
+          <div className="bg-[#1a1a1a] border border-[#3a3a3a] rounded-lg p-3 space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">Quality Score</p>
+              <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">Quality Score</p>
               <div className="flex items-baseline gap-0.5">
-                <span className="text-2xl font-bold text-white">{codeAnalysis.quality.score}</span>
-                <span className="text-xs font-bold text-neutral-500">/10</span>
+                <span className="text-base font-bold text-white">{codeAnalysis.quality.score}</span>
+                <span className="text-[10px] font-bold text-neutral-500">/10</span>
               </div>
             </div>
             
-            <div className="space-y-3">
-              <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">Potential Issues</p>
-              <ul className="space-y-2">
+            <div className="space-y-2">
+              <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">Potential Issues</p>
+              <ul className="space-y-1.5">
                 {codeAnalysis.quality.issues.map((issue: string, i: number) => (
-                  <li key={i} className="flex items-start gap-2 text-xs text-neutral-300">
-                    <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-slate-600" />
-                    {issue}
+                  <li key={i} className="flex items-start gap-2 text-[14px] text-neutral-300 leading-relaxed font-sans">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                    <span>{issue}</span>
                   </li>
                 ))}
               </ul>
@@ -429,17 +385,17 @@ export default function ConsoleOutput({
 
         {/* Wrong Approach Detector */}
         {codeAnalysis.wrongApproach?.detected && (
-          <div className="bg-[#2a2a2a] border border-red-500/10 rounded-xl p-5 space-y-3">
+          <div className="bg-[#1a1a1a] border border-red-500/20 rounded-lg p-3 space-y-2">
              <div className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider">Suboptimal Approach</h4>
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span className="text-[11px] font-bold text-red-400 uppercase tracking-widest">Suboptimal Approach</span>
              </div>
-             <p className="text-sm text-neutral-300 leading-relaxed">
+             <p className="text-[14px] text-neutral-300 leading-relaxed font-sans">
                {codeAnalysis.wrongApproach.issue}
              </p>
-             <div className="bg-[#252526] rounded-xl p-4 border border-[#3a3a3a] mt-2">
-                <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter mb-1">Recommendation</p>
-                <p className="text-xs text-neutral-300 leading-relaxed">{codeAnalysis.wrongApproach.suggestion}</p>
+             <div className="bg-[#111111] rounded-lg p-2.5 border border-[#3a3a3a] mt-1">
+                <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-1">Recommendation</p>
+                <p className="text-[14px] text-neutral-300 leading-relaxed font-sans">{codeAnalysis.wrongApproach.suggestion}</p>
              </div>
           </div>
         )}
@@ -449,63 +405,63 @@ export default function ConsoleOutput({
 
   const renderConsoleTab = () => {
     return (
-      <PanelCardLayout
-        icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>}
+      <PanelFlatLayout
+        icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>}
         title="Console Output"
         description="Run your code to see execution output and test results here."
       >
         {(testResults.length > 0 || consoleOutput) ? (
-          <div className="p-5 space-y-4 overflow-y-auto h-full">
+          <div className="space-y-3">
             {testResults.map((result) => (
               <div
                 key={result.id}
-                className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl p-5 hover:bg-[#333333] transition-colors"
+                className="bg-[#1a1a1a] border border-[#3a3a3a] rounded-lg p-3 transition-colors"
               >
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-300">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-bold text-neutral-300">
                     Test Case {result.id}
                   </span>
                   <span
-                    className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
+                    className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
                       result.status === "pass"
                         ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                         : result.status === "fail"
                           ? "bg-red-500/10 text-red-400 border border-red-500/20"
-                          : "bg-slate-500/10 text-neutral-400 border border-slate-500/20"
+                          : "bg-neutral-500/10 text-neutral-400 border border-neutral-500/20"
                     }`}
                   >
                     {result.status === "pass" ? "Passed" : result.status === "fail" ? "Failed" : "Pending"}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <p className="text-[10px] uppercase tracking-tighter text-neutral-500 font-bold">Input</p>
-                    <pre className="text-xs font-mono text-neutral-300 bg-black/20 p-2 rounded border border-[#3a3a3a] overflow-x-auto">
+                    <p className="text-[11px] uppercase tracking-widest text-neutral-500 font-bold">Input</p>
+                    <pre className="text-xs font-mono text-neutral-300 bg-[#111111] px-3 py-1.5 rounded-lg border border-[#3a3a3a] overflow-x-auto">
                       {result.input}
                     </pre>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] uppercase tracking-tighter text-neutral-500 font-bold">Output</p>
-                    <pre className="text-xs font-mono text-neutral-300 bg-black/20 p-2 rounded border border-[#3a3a3a] overflow-x-auto">
+                    <p className="text-[11px] uppercase tracking-widest text-neutral-500 font-bold">Output</p>
+                    <pre className="text-xs font-mono text-neutral-300 bg-[#111111] px-3 py-1.5 rounded-lg border border-[#3a3a3a] overflow-x-auto">
                       {result.actualOutput || result.output}
                     </pre>
                   </div>
                 </div>
 
                 {result.status === "fail" && (
-                  <div className="mt-4 border-t border-slate-700/30 pt-4">
-                    <div className="flex items-center justify-between mb-2">
-                       <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">AI Explanation</p>
+                  <div className="mt-3 border-t border-[#3a3a3a] pt-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                       <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">Lucy AI Explanation</span>
                        <button
                          onClick={() => handleExplainError(result)}
                          disabled={loadingIds.has(result.id)}
-                         className="text-[10px] font-bold text-amber-500 hover:text-amber-400 transition-colors uppercase tracking-widest disabled:opacity-50"
+                         className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 transition-colors uppercase tracking-widest disabled:opacity-50"
                        >
-                         {loadingIds.has(result.id) ? "Loading..." : "Regenerate Hint"}
+                         {loadingIds.has(result.id) ? "Analyzing..." : "Explain Error"}
                        </button>
                     </div>
-                    <div className="bg-cyan-500/5 rounded-xl p-4 border border-cyan-500/10 text-xs text-neutral-300 leading-relaxed font-medium italic shadow-inner">
+                    <div className="bg-[#111111] rounded-lg p-3 border border-[#3a3a3a] text-[13px] text-neutral-300 leading-relaxed font-sans">
                       {explanations[result.id] || "No explanation available. Click 'Explain Error' to generate insights."}
                     </div>
                   </div>
@@ -514,9 +470,9 @@ export default function ConsoleOutput({
             ))}
 
             {consoleOutput && (
-              <div className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl p-5 shadow-xl">
-                 <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter mb-3">Execution Logs</p>
-                 <pre className="text-xs font-mono text-neutral-300 bg-black/40 p-4 rounded-lg border border-[#3a3a3a] overflow-x-auto whitespace-pre-wrap leading-relaxed shadow-inner">
+              <div className="bg-[#1a1a1a] border border-[#3a3a3a] rounded-lg p-3 shadow-sm">
+                 <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-2">Execution Logs</p>
+                 <pre className="text-xs font-mono text-neutral-300 bg-[#111111] p-3 rounded-lg border border-[#3a3a3a] overflow-x-auto whitespace-pre-wrap leading-relaxed">
                    {consoleOutput}
                  </pre>
               </div>
@@ -525,18 +481,18 @@ export default function ConsoleOutput({
             {renderCodeAnalysisReport()}
           </div>
         ) : isRunning ? (
-          <CenteredPanelContent
+          <CenteredPanelPlaceholder
             icon={
-              <div className="relative h-7 w-7">
-                <div className="absolute inset-0 rounded-full border-2 border-slate-500/10" />
-                <div className="absolute inset-0 rounded-full border-2 border-t-slate-500 animate-spin" />
+              <div className="relative h-5 w-5">
+                <div className="absolute inset-0 rounded-full border border-neutral-800" />
+                <div className="absolute inset-0 rounded-full border border-t-emerald-500 animate-spin" />
               </div>
             }
             title="Executing Code"
             description="Processing your solution and running test cases against our validation engine..."
           />
         ) : undefined}
-      </PanelCardLayout>
+      </PanelFlatLayout>
     );
   };
 
@@ -552,42 +508,41 @@ export default function ConsoleOutput({
     let explanationText = "";
     if (isO1) {
       detectedName = "O(1)";
-      explanationText = "This means runtime remains constant regardless of the input size.";
+      explanationText = "Constant runtime regardless of input size.";
     } else if (isLogN) {
       detectedName = "O(log n)";
-      explanationText = "This means runtime increases logarithmically—extremely efficient for large inputs.";
+      explanationText = "Logarithmic runtime—extremely efficient.";
     } else if (isN) {
       detectedName = "O(n)";
-      explanationText = "This means runtime increases linearly with input size.";
+      explanationText = "Linear runtime relative to input size.";
     } else if (isNLogN) {
       detectedName = "O(n log n)";
-      explanationText = "This means runtime is slightly worse than linear, typical for efficient sorting algorithms.";
+      explanationText = "Typical runtime for efficient sorting algorithms.";
     } else if (isN2) {
       detectedName = "O(n²)";
-      explanationText = "This means runtime grows quadratically, becoming very slow for large inputs.";
+      explanationText = "Quadratic runtime—slows down for large inputs.";
     }
 
     const sections = aiFeedback ? aiFeedback.split(/(?=(?:^|\n)##+ )/).filter((s: string) => s.trim().length > 0) : [];
     
-    // Detect report type from the first section header
     let reportTitle = "AI Feedback";
-    let reportIcon = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>;
+    let reportIcon = <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>;
     
     const filteredSections = sections.filter(section => {
       const trimmed = section.trim();
       if (trimmed.startsWith("## Analyze Report")) {
         reportTitle = "Analyze Report";
-        reportIcon = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="8"/></svg>;
+        reportIcon = <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="8"/></svg>;
         return false;
       }
       if (trimmed.startsWith("## Debug Report")) {
         reportTitle = "Debug Report";
-        reportIcon = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.7-3.7a1 1 0 0 0 0-1.4l-1.6-1.6a1 1 0 0 0-1.4 0l-3.7 3.7Z"/><path d="m2 22 5-5"/><path d="M9.5 14.5 16 8"/><path d="m14 2 8 8"/><path d="m2 14 8 8"/></svg>;
+        reportIcon = <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.7-3.7a1 1 0 0 0 0-1.4l-1.6-1.6a1 1 0 0 0-1.4 0l-3.7 3.7Z"/><path d="m2 22 5-5"/><path d="M9.5 14.5 16 8"/><path d="m14 2 8 8"/><path d="m2 14 8 8"/></svg>;
         return false;
       }
       if (trimmed.startsWith("## AI Hint")) {
         reportTitle = "AI Hint";
-        reportIcon = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>;
+        reportIcon = <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>;
         return false;
       }
       return true;
@@ -600,28 +555,17 @@ export default function ConsoleOutput({
       "AI-generated insights about your solution.";
 
     return (
-      <PanelCardLayout
+      <PanelFlatLayout
         icon={reportIcon}
         title={reportTitle}
         description={panelDescription}
       >
         {isAnalyzing || isDebugging || isHinting ? (
-          <CenteredPanelContent
+          <CenteredPanelPlaceholder
             icon={
-              <div className="relative h-10 w-10 flex items-center justify-center">
-                <div className={`absolute inset-0 rounded-xl border-2 ${
-                  isDebugging ? 'border-violet-500/20' : isHinting ? 'border-amber-500/20' : 'border-slate-500/20'
-                }`} />
-                <div className={`absolute inset-0 rounded-xl border-2 ${
-                  isDebugging ? 'border-t-violet-500' : isHinting ? 'border-t-amber-400' : 'border-t-slate-300'
-                } animate-spin`} />
-                {isDebugging ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-violet-400"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.7-3.7a1 1 0 0 0 0-1.4l-1.6-1.6a1 1 0 0 0-1.4 0l-3.7 3.7Z"/><path d="m2 22 5-5"/><path d="M9.5 14.5 16 8"/><path d="m14 2 8 8"/><path d="m2 14 8 8"/></svg>
-                ) : isHinting ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-400"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-300"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="8"/></svg>
-                )}
+              <div className="relative h-5 w-5">
+                <div className="absolute inset-0 rounded-full border border-neutral-800" />
+                <div className="absolute inset-0 rounded-full border border-t-emerald-500 animate-spin" />
               </div>
             }
             title={isDebugging ? "AI is Debugging" : isHinting ? "AI is Hinting" : "AI is Analyzing"}
@@ -632,37 +576,30 @@ export default function ConsoleOutput({
             }
           />
         ) : aiFeedback ? (
-          <div className="p-5 space-y-6 overflow-y-auto h-full scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-            {/* Complexity Badge if available */}
+          <div className="space-y-3">
             {detectedComplexity && reportTitle !== "Debug Report" && (
-              <div className="flex items-center gap-3 animate-in slide-in-from-left-4 duration-500">
-                <div className={`px-4 py-2 rounded-xl border font-mono font-bold text-sm shadow-xl transition-all duration-500 ${
-                  isO1 ? "bg-purple-500/10 text-purple-400 border-purple-500/30 shadow-purple-500/10" :
-                  isLogN ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30 shadow-cyan-500/10" :
-                  isN ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-emerald-500/10" :
-                  isNLogN ? "bg-amber-500/10 text-amber-400 border-amber-500/30 shadow-amber-500/10" :
-                  isN2 ? "bg-red-500/10 text-red-400 border-red-500/30 shadow-red-500/10" :
-                  "bg-slate-500/10 text-neutral-400 border-slate-500/30 shadow-slate-500/10"
+              <div className="flex items-center gap-3 border-b border-[#2a2a2a] pb-3 mb-2">
+                <div className={`px-2.5 py-1 rounded-lg border font-sans font-bold text-[13px] ${
+                  isN2 ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                 }`}>
                   {detectedComplexity}
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Detected Complexity</span>
-                  <span className="text-xs text-neutral-300 font-medium">{explanationText}</span>
+                  <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">Detected Complexity</span>
+                  <span className="text-[13px] text-neutral-400 font-medium font-sans">{explanationText}</span>
                 </div>
               </div>
             )}
 
-            {/* AI Report Sections */}
             {filteredSections.map((section: string, idx: number) => {
               const [titleLine, ...contentLines] = section.trim().split("\n");
               const title = titleLine.replace(/^##+\s*/, "");
               const content = contentLines.join("\n").trim();
               
               return (
-                <div key={idx} className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl p-5 space-y-3 shadow-lg group transition-all hover:border-[#4a4a4a]">
-                  <h4 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest group-hover:text-neutral-300 transition-colors">{title}</h4>
-                  <div className="text-sm text-neutral-300 leading-relaxed font-medium prose prose-invert prose-sm max-w-none">
+                <div key={idx} className="bg-[#1a1a1a] border border-[#3a3a3a] rounded-lg p-3 space-y-2">
+                  <span className="text-xs font-bold text-neutral-300">{title}</span>
+                  <div className="text-[14px] text-neutral-300 leading-relaxed font-sans prose prose-invert prose-sm max-w-none">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
                   </div>
                 </div>
@@ -670,32 +607,32 @@ export default function ConsoleOutput({
             })}
           </div>
         ) : undefined}
-      </PanelCardLayout>
+      </PanelFlatLayout>
     );
   };
 
   const renderEdgeCasesTab = () => {
     return (
-      <PanelCardLayout
-        icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
+      <PanelFlatLayout
+        icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
         title="Edge Cases"
         description="Validate your algorithm against corner cases."
         button={onGenerateEdgeCases ? {
           label: isGeneratingEdgeCases ? "Generating..." : "Generate Edge Cases",
           onClick: onGenerateEdgeCases,
           disabled: isGeneratingEdgeCases,
-          className: "bg-[#333333] border border-[#3a3a3a] text-[#c9d1d9] hover:bg-[#404040] hover:border-[#8b949e]"
+          className: "bg-[#252526] border border-[#2a2a2a] text-[#c9d1d9] hover:bg-[#333]"
         } : undefined}
       >
         {edgeCases ? (
-          <div className="p-5 space-y-5 overflow-y-auto">
-            <div className="flex items-center justify-between px-1">
-              <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Edge Case Analysis</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between border-b border-[#2a2a2a] pb-2 mb-2">
+              <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">Edge Case Analysis</span>
               <button
                 type="button"
                 onClick={onGenerateEdgeCases}
                 disabled={!onGenerateEdgeCases || isGeneratingEdgeCases}
-                className="text-[10px] font-bold text-amber-500 hover:text-amber-400 transition-colors uppercase tracking-widest disabled:opacity-50"
+                className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 transition-colors uppercase tracking-widest disabled:opacity-50"
               >
                 {isGeneratingEdgeCases ? "Regenerating..." : "Regenerate"}
               </button>
@@ -703,48 +640,44 @@ export default function ConsoleOutput({
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
-                ol: ({ node, ...props }: any) => <ol className="flex flex-col gap-5 list-decimal pl-5" {...props} />,
-                ul: ({ node, ...props }: any) => <ul className="flex flex-col gap-5 list-disc pl-5" {...props} />,
+                ol: ({ node, ...props }: any) => <ol className="flex flex-col gap-3 list-decimal pl-4" {...props} />,
+                ul: ({ node, ...props }: any) => <ul className="flex flex-col gap-3 list-disc pl-4" {...props} />,
                 li: ({ node, ...props }: any) => (
-                  <li className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl p-6 mb-4 list-none transition-colors hover:bg-[#333333]" {...props} />
+                  <li className="bg-[#1a1a1a] border border-[#3a3a3a] rounded-lg p-3 mb-2 list-none" {...props} />
                 ),
                 strong: ({ node, children, ...props }) => (
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-4 w-1 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-                    <strong className="text-base font-bold text-white tracking-tight" {...props}>{children}</strong>
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <div className="h-3 w-1 rounded bg-emerald-500" />
+                    <strong className="text-sm font-bold text-white tracking-tight font-sans" {...props}>{children}</strong>
                   </div>
                 ),
                 pre: ({ node, ...props }) => (
-                  <div className="relative group/code">
-                    <div className="absolute -inset-2 bg-gradient-to-r from-amber-500/10 to-transparent rounded-lg opacity-0 group-hover/code:opacity-100 transition-opacity" />
-                    <pre className="relative font-mono bg-black/40 p-4 rounded-lg text-xs overflow-x-auto text-neutral-300 shadow-inner border border-[#3a3a3a] leading-relaxed" {...props} />
-                  </div>
+                  <pre className="font-mono bg-[#111111] p-3 rounded-lg text-xs overflow-x-auto text-neutral-300 border border-[#3a3a3a] leading-relaxed mt-2" {...props} />
                 ),
                 code: ({ node, inline, ...props }: any) => (
                   inline
-                    ? <code className="bg-slate-800 text-cyan-300 px-1 py-0.5 rounded text-xs" {...props} />
+                    ? <code className="bg-[#2a2a2a] text-emerald-400 px-1 py-0.5 rounded text-xs font-mono" {...props} />
                     : <code {...props} />
                 ),
-                p: ({ node, ...props }) => <p className="text-sm text-neutral-300 leading-relaxed font-medium" {...props} />,
+                p: ({ node, ...props }) => <p className="text-[14px] text-neutral-300 leading-relaxed font-sans" {...props} />,
               }}
             >
               {edgeCases}
             </ReactMarkdown>
           </div>
         ) : undefined}
-      </PanelCardLayout>
+      </PanelFlatLayout>
     );
   };
 
-
   return (
-    <div className="flex h-full flex-col bg-[#0a0a0a] text-gray-300 overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col bg-[#1e1e1e] text-neutral-300 overflow-hidden font-sans">
       {/* Tabs */}
       <div 
-        className="flex shrink-0 items-center justify-between border-b border-[#2a2a2a] bg-[#1e1e1e] px-2 h-[36px] cursor-pointer"
+        className="flex shrink-0 items-center justify-between border-b border-[#2a2a2a] bg-[#1e1e1e] px-2 h-[36px] cursor-pointer select-none"
         onClick={onToggleExpand}
       >
-        <div className="flex gap-6 h-full pl-2">
+        <div className="flex gap-8 h-full pl-4">
           {[
             { id: "console", label: "Console" },
             { id: "ai", label: "AI Feedback" },
@@ -759,17 +692,17 @@ export default function ConsoleOutput({
                   onToggleExpand();
                 }
               }}
-              className={`relative h-full flex items-center text-[11px] font-bold tracking-wider uppercase transition-all ${
+              className={`relative h-full flex items-center text-[14px] font-medium transition-all ${
                 activeTab === tab.id
                   ? "text-white"
-                  : "text-neutral-500 hover:text-neutral-300"
+                  : "text-neutral-400 hover:text-slate-200"
               }`}
             >
               <span className="relative z-10">{tab.label}</span>
               {activeTab === tab.id && (
                 <motion.div
                   layoutId="activeConsoleTabBadge"
-                  className="absolute bottom-0 left-0 right-0 h-[2px] bg-slate-300 rounded-t-full"
+                  className="absolute bottom-0 left-0 right-0 h-[2px] bg-white rounded-t-full"
                 />
               )}
             </button>
@@ -778,10 +711,26 @@ export default function ConsoleOutput({
         <div className="flex items-center gap-4 px-2">
           <div className="flex items-center gap-2">
             <div className={`flex h-1.5 w-1.5 rounded-full ${isRunning ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-neutral-600"}`} />
-            <span className="text-[10px] font-bold tracking-widest text-neutral-500 uppercase">
+            <span className="text-[9px] font-bold tracking-widest text-neutral-500 uppercase">
               {isRunning ? "Executing..." : "Ready"}
             </span>
           </div>
+          {onToggleFullscreen && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFullscreen();
+              }}
+              className="flex items-center justify-center h-6 w-6 rounded hover:bg-[#333] transition-colors text-neutral-400 hover:text-white"
+              title={isFullscreenMode ? "Exit Fullscreen" : "Fullscreen"}
+            >
+              {isFullscreenMode ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7"/></svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+              )}
+            </button>
+          )}
           {onToggleExpand && (
             <button
               onClick={(e) => {
@@ -792,9 +741,9 @@ export default function ConsoleOutput({
               title={isExpanded ? "Collapse Console" : "Expand Console"}
             >
               {isExpanded ? (
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
               ) : (
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
               )}
             </button>
           )}
@@ -802,7 +751,7 @@ export default function ConsoleOutput({
       </div>
 
       {/* Tab content */}
-      <div className={`flex-1 min-h-0 overflow-hidden font-mono transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
+      <div className="flex-1 min-h-0 overflow-y-auto bg-[#1e1e1e] p-3 font-sans text-[14px] leading-relaxed font-normal scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
         {activeTab === "console" && renderConsoleTab()}
         {activeTab === "ai" && renderAiFeedbackTab()}
         {activeTab === "edges" && renderEdgeCasesTab()}
@@ -815,16 +764,16 @@ export default function ConsoleOutput({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex flex-col bg-transparent text-gray-300"
+            className="fixed inset-0 z-50 flex flex-col bg-[#1e1e1e] text-gray-300 font-sans"
           >
-            <div className="flex shrink-0 items-center justify-between border-b border-[#333] bg-[#252526] px-6 py-4">
-              <h2 className="text-lg font-bold text-violet-400">Flowchart Viewer</h2>
+            <div className="flex shrink-0 items-center justify-between border-b border-[#2a2a2a] bg-[#1e1e1e] px-6 py-4">
+              <h2 className="text-sm font-bold text-emerald-400 uppercase tracking-wider">Flowchart Viewer</h2>
               <button
                 onClick={() => setIsFullscreen(false)}
-                className="rounded text-gray-400 hover:text-white hover:bg-[#333] p-1.5 transition-colors"
+                className="rounded text-neutral-400 hover:text-white hover:bg-[#333] p-1.5 transition-colors"
                 title="Close Fullscreen"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
               </button>
             </div>
 
@@ -838,10 +787,10 @@ export default function ConsoleOutput({
               >
                 {({ zoomIn, zoomOut, resetTransform }) => (
                   <>
-                    <div className="absolute top-4 right-4 z-10 flex gap-3 shadow-lg p-2 bg-[#252526]/80 backdrop-blur rounded-lg border border-[#333]">
-                      <button onClick={() => zoomIn()} className="rounded bg-[#1f2937] px-3 py-1.5 text-sm font-medium text-gray-200 hover:bg-[#374151] hover:text-white transition-colors">Zoom In</button>
-                      <button onClick={() => zoomOut()} className="rounded bg-[#1f2937] px-3 py-1.5 text-sm font-medium text-gray-200 hover:bg-[#374151] hover:text-white transition-colors">Zoom Out</button>
-                      <button onClick={() => resetTransform()} className="rounded bg-[#1f2937] px-3 py-1.5 text-sm font-medium text-gray-200 hover:bg-[#374151] hover:text-white transition-colors">Reset View</button>
+                    <div className="absolute top-4 right-4 z-10 flex gap-2 p-1.5 bg-[#252526]/80 backdrop-blur rounded border border-[#2a2a2a]">
+                      <button onClick={() => zoomIn()} className="rounded bg-[#1e1e1e] px-2.5 py-1 text-xs font-bold text-neutral-300 hover:bg-[#333] hover:text-white transition-colors">Zoom In</button>
+                      <button onClick={() => zoomOut()} className="rounded bg-[#1e1e1e] px-2.5 py-1 text-xs font-bold text-neutral-300 hover:bg-[#333] hover:text-white transition-colors">Zoom Out</button>
+                      <button onClick={() => resetTransform()} className="rounded bg-[#1e1e1e] px-2.5 py-1 text-xs font-bold text-neutral-300 hover:bg-[#333] hover:text-white transition-colors">Reset View</button>
                     </div>
                     <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }} contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <div ref={fullscreenMermaidRef} className="mermaid-container w-full h-full flex items-center justify-center p-8" />

@@ -1,20 +1,14 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Panel, Group, Separator, PanelImperativeHandle } from "react-resizable-panels";
 import ProblemPanel, { defaultProblem } from "@/components/ProblemPanel";
-import CodeEditor, { defaultCode, type EditorLanguage } from "@/components/CodeEditor";
+import CodeEditor, { type EditorLanguage } from "@/components/CodeEditor";
 import ConsoleOutput, { type TestResult } from "@/components/ConsoleOutput";
 import AiMentorChat from "@/components/AiMentorChat";
 import InterviewMode from "@/components/InterviewMode";
-import {
-  buildPythonRunner,
-  buildJavaRunner,
-  extractPythonFunctionName,
-  extractJavaClassAndMethod,
-  outputsMatch,
-} from "@/lib/runnerUtils";
+import { useInterview } from "@/hooks/useInterview";
 
 
 export type FlowchartData = {
@@ -97,6 +91,10 @@ export default function Home() {
   const [isHinting, setIsHinting] = useState(false);
   const [activeTab, setActiveTab] = useState<"console" | "ai" | "edges">("console");
   const [leftPanelTab, setLeftPanelTab] = useState<"problem" | "visualizer" | "complexity">("problem");
+  const [maximizedPanel, setMaximizedPanel] = useState<"question" | "editor" | "terminal" | null>(null);
+  const toggleMaximizePanel = useCallback((panel: "question" | "editor" | "terminal") => {
+    setMaximizedPanel((prev) => (prev === panel ? null : panel));
+  }, []);
   const [problemMeta, setProblemMeta] = useState(() => ({
     title: "",
     description: "",
@@ -105,23 +103,36 @@ export default function Home() {
   }));
   // starterCode holds problem-specific stubs after import; falls back to genericStarterStubs
   const [starterCode, setStarterCode] = useState<Record<EditorLanguage, string>>(() => ({ ...genericStarterStubs }));
-  const [isInterviewActive, setIsInterviewActive] = useState(false);
-  const [isConsoleExpanded, setIsConsoleExpanded] = useState(false);
+  const [isConsoleExpanded, setIsConsoleExpanded] = useState(true);
   const consolePanelRef = useRef<PanelImperativeHandle>(null);
 
+  const interview = useInterview();
+
   const expandConsole = useCallback(() => {
-    setTimeout(() => {
-      consolePanelRef.current?.expand();
-    }, 10);
+    setMaximizedPanel(null);
+    requestAnimationFrame(() => {
+      if (!consolePanelRef.current) return;
+
+      if (consolePanelRef.current.isCollapsed()) {
+        consolePanelRef.current.expand();
+      }
+
+      consolePanelRef.current.resize(35);
+
+      setIsConsoleExpanded(true);
+    });
   }, []);
 
   const toggleConsole = useCallback(() => {
-    if (consolePanelRef.current) {
-      if (consolePanelRef.current.isCollapsed()) {
-        consolePanelRef.current.expand();
-      } else {
-        consolePanelRef.current.collapse();
-      }
+    if (!consolePanelRef.current) return;
+
+    if (consolePanelRef.current.isCollapsed()) {
+      consolePanelRef.current.expand();
+      consolePanelRef.current.resize(35);
+      setIsConsoleExpanded(true);
+    } else {
+      consolePanelRef.current.collapse();
+      setIsConsoleExpanded(false);
     }
   }, []);
 
@@ -130,6 +141,19 @@ export default function Home() {
 
   // Derived: streak is ON when all test cases passed
   const isStreakOn = testResults.length > 0 && testResults.every((r) => r.status === "pass");
+
+  useEffect(() => {
+    try {
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && (key.includes("react-resizable-panels") || key.includes("layout"))) {
+          localStorage.removeItem(key);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not clear layout cache from localStorage:", e);
+    }
+  }, []);
 
   const handleLanguageChange = useCallback((lang: EditorLanguage) => {
     setLanguage(lang);
@@ -201,6 +225,17 @@ export default function Home() {
 
       setTestResults(results);
       setCodeAnalysis(data.analysis);
+
+      // Populate visible console output string
+      let summaryText = `[EXECUTION SUMMARY]\n`;
+      let passedCount = 0;
+      results.forEach(r => {
+        if (r.status === "pass") passedCount++;
+        summaryText += `\n▶ Test Case ${r.id} | Status: ${r.status.toUpperCase()}\n  Input:    ${r.input}\n  Expected: ${r.expectedOutput}\n  Actual:   ${r.actualOutput}\n`;
+      });
+      summaryText += `\nResult: ${passedCount} / ${results.length} Test Cases Passed.`;
+      
+      setConsoleOutput(summaryText);
 
       // Update complexity state for the graph if present
       const complexityText = data.analysis.complexity.time;
@@ -619,19 +654,6 @@ export default function Home() {
             >
               {isRunning ? "Running..." : "Run Code"}
             </button>
-            
-            {/* Streak icon */}
-            <div 
-              className={`flex-shrink-0 flex items-center justify-center h-[28px] w-[36px] rounded-md transition-all ${isStreakOn ? 'bg-orange-500/10 shadow-sm' : 'bg-[#333333]'} cursor-default`}
-              title={isStreakOn ? "🔥 All tests passed!" : "Run code to light your streak!"}
-            >
-              <img
-                key={isStreakOn ? "on" : "off"}
-                src={isStreakOn ? "/streak-on.png" : "/streak-off.png"}
-                alt={isStreakOn ? "Streak active" : "Streak inactive"}
-                className={`w-6 h-6 object-contain transition-all duration-300 ${isStreakOn ? 'scale-110 drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]' : 'opacity-60 grayscale'}`}
-              />
-            </div>
           </div>
 
           <div className="w-[1px] h-5 bg-[#4a4a4a] mx-1" />
@@ -663,8 +685,21 @@ export default function Home() {
 
         {/* Right: Interview Mode */}
         <div className="flex items-center flex-1 justify-end gap-4">
+          {/* Streak icon */}
+          <div 
+            className="flex items-center justify-center cursor-default"
+            title={isStreakOn ? "🔥 All tests passed!" : "Run code to light your streak!"}
+          >
+            <img
+              key={isStreakOn ? "on" : "off"}
+              src={isStreakOn ? "/streak-on.png" : "/streak-off.png"}
+              alt={isStreakOn ? "Streak active" : "Streak inactive"}
+              className="h-[20px] w-[20px] object-contain"
+            />
+          </div>
+
           <button
-            onClick={() => setIsInterviewActive(true)}
+            onClick={() => interview.isInterviewActive ? interview.exitInterview() : interview.openInterview()}
             disabled={!isProblemLoaded}
             title={!isProblemLoaded ? "Load a problem first" : "Start a 25-minute mock interview"}
             className="flex items-center justify-center h-[28px] gap-2 rounded-md bg-[#2a2a2a] px-4 text-[13px] font-bold text-neutral-300 border border-[#3a3a3a] hover:bg-[#3a3a3a] transition-colors disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
@@ -679,109 +714,194 @@ export default function Home() {
       </header>
 
       {/* Main Resizable Layout */}
-      <div className="min-h-0 flex-1 overflow-hidden p-1">
-        <Group orientation="horizontal">
-          {/* Left Panel - Problem */}
-          <Panel defaultSize={40} minSize={20} className="bg-[#1e1e1e] rounded-xl border border-[#2a2a2a] shadow-sm">
-            <ProblemPanel
-              title={problemMeta.title}
-              description={problemMeta.description}
-              constraints={problemMeta.constraints}
-              examples={problemMeta.examples}
-              onImportProblem={handleImportProblem}
-              isImporting={isImporting}
-              activeTab={leftPanelTab}
-              onActiveTabChange={setLeftPanelTab}
-              detectedComplexity={leftComplexityDetected}
-              showComplexityGraph={showLeftComplexityGraph}
-              flowchartData={flowchartData}
-              isGeneratingFlowchart={isGeneratingFlowchart}
-              onGenerateFlowchart={handleGenerateFlowchart}
-              onTimeComplexity={handleTimeComplexity}
-              codeAnalysis={codeAnalysis}
-              complexityReport={complexityReport}
-              isAnalyzingComplexity={isAnalyzingComplexity}
-            />
-          </Panel>
-
-          {/* Vertical Resize Handle */}
-          <Separator className="w-[4px] bg-transparent transition-all hover:bg-neutral-700 active:bg-neutral-600 cursor-col-resize mx-0.5" />
-
-          {/* Right Panel - Editor & Console */}
-          <Panel defaultSize={60} minSize={30} className="flex flex-col bg-[#1e1e1e] rounded-xl border border-[#2a2a2a] shadow-sm overflow-hidden">
-            <Group orientation="vertical">
-              {/* Right Top Panel - Editor */}
-              <Panel defaultSize={75} minSize={20} className="flex flex-col bg-transparent overflow-hidden">
-                {/* Editor Header for Language Selection */}
-                <div className="flex items-center px-4 py-1.5 bg-[#1e1e1e] shrink-0">
-                  <select
-                    value={language}
-                    onChange={(e) =>
-                      handleLanguageChange(e.target.value as EditorLanguage)
-                    }
-                    className="min-w-[120px] shrink-0 rounded-md bg-[#2a2a2a] border border-[#3a3a3a] px-3 py-1 text-[13px] font-medium text-neutral-300 outline-none transition-colors hover:bg-[#333333] hover:text-white"
-                  >
-                    <option value="c">C</option>
-                    <option value="cpp">C++</option>
-                    <option value="java">Java</option>
-                    <option value="python">Python</option>
-                    <option value="python3">Python3</option>
-                    <option value="javascript">JavaScript</option>
-                    <option value="typescript">TypeScript</option>
-                    <option value="csharp">C#</option>
-                  </select>
-                </div>
-                <div className="min-h-0 flex-1 overflow-hidden p-0">
-                  <CodeEditor
-                    value={code}
-                    onChange={setCode}
-                    language={language}
-                    height="100%"
-                  />
-                </div>
-              </Panel>
-
-              {/* Horizontal Resize Handle */}
-              <Separator className="h-[2px] bg-[#2a2a2a] transition-all hover:bg-neutral-600 active:bg-neutral-500 cursor-row-resize" />
-
-              {/* Right Bottom Panel - Console */}
-              <Panel 
-                panelRef={consolePanelRef} 
-                defaultSize={5} 
-                collapsible={true}
-                collapsedSize={5}
-                minSize={25} 
-                maxSize={80}
-                onResize={(size) => setIsConsoleExpanded(size.asPercentage > 10)}
-                className="overflow-hidden bg-[#1e1e1e]"
+      <div className="min-h-0 flex-1 overflow-hidden p-2 bg-[#0a0a0a] flex">
+        {maximizedPanel === "editor" ? (
+          <div className="flex-1 h-full bg-[#1e1e1e] rounded-xl border border-[#2a2a2a] shadow-sm flex flex-col overflow-hidden">
+            <div className="flex shrink-0 items-center justify-between border-b border-[#2a2a2a] bg-[#1e1e1e] px-4 h-[36px]">
+              <select
+                value={language}
+                onChange={(e) =>
+                  handleLanguageChange(e.target.value as EditorLanguage)
+                }
+                className="min-w-[120px] shrink-0 rounded bg-[#2a2a2a] border border-[#3a3a3a] px-2 py-0.5 text-[11px] font-medium text-neutral-300 outline-none transition-colors hover:bg-[#333333] hover:text-white"
               >
-                <ConsoleOutput
-                  isExpanded={isConsoleExpanded}
-                  onToggleExpand={toggleConsole}
-                  consoleOutput={consoleOutput}
-                  aiFeedback={aiFeedback}
-                  edgeCases={edgeCasesOutput}
-                  detectedComplexity={detectedComplexity}
-                  showComplexityGraph={showComplexityGraph}
-                  testResults={testResults}
-                  isRunning={isRunning}
-                  isAnalyzing={isAnalyzing}
-                  isDebugging={isDebugging}
-                  isHinting={isHinting}
-                  problemDescription={problemMeta.description}
-                  userCode={code}
-                  onGenerateEdgeCases={handleGenerateEdgeCases}
-                  isGeneratingEdgeCases={isGeneratingEdgeCases}
+                <option value="c">C</option>
+                <option value="cpp">C++</option>
+                <option value="java">Java</option>
+                <option value="python">Python</option>
+                <option value="python3">Python3</option>
+                <option value="javascript">JavaScript</option>
+                <option value="typescript">TypeScript</option>
+                <option value="csharp">C#</option>
+              </select>
+              <button
+                onClick={() => toggleMaximizePanel("editor")}
+                className="flex items-center justify-center h-6 w-6 rounded hover:bg-[#333] transition-colors text-neutral-400 hover:text-white"
+                title="Exit Fullscreen"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7"/></svg>
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <CodeEditor
+                value={code}
+                onChange={setCode}
+                language={language}
+                height="100%"
+              />
+            </div>
+          </div>
+        ) : maximizedPanel === "terminal" ? (
+          <div className="flex-1 h-full bg-[#1e1e1e] rounded-xl border border-[#2a2a2a] shadow-sm flex flex-col overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <ConsoleOutput
+                isExpanded={true}
+                onToggleExpand={undefined}
+                isFullscreenMode={true}
+                onToggleFullscreen={() => toggleMaximizePanel("terminal")}
+                consoleOutput={consoleOutput}
+                aiFeedback={aiFeedback}
+                edgeCases={edgeCasesOutput}
+                detectedComplexity={detectedComplexity}
+                showComplexityGraph={showComplexityGraph}
+                testResults={testResults}
+                isRunning={isRunning}
+                isAnalyzing={isAnalyzing}
+                isDebugging={isDebugging}
+                isHinting={isHinting}
+                problemDescription={problemMeta.description}
+                userCode={code}
+                onGenerateEdgeCases={handleGenerateEdgeCases}
+                isGeneratingEdgeCases={isGeneratingEdgeCases}
+                flowchartData={flowchartData}
+                isGeneratingFlowchart={isGeneratingFlowchart}
+                codeAnalysis={codeAnalysis}
+                activeTab={activeTab}
+                onActiveTabChange={setActiveTab}
+              />
+            </div>
+          </div>
+        ) : (
+          <Group orientation="horizontal">
+            {/* Left Panel - Problem */}
+            <Panel defaultSize={40} minSize={20} className="bg-[#1e1e1e] rounded-xl border border-[#2a2a2a] shadow-sm flex flex-col overflow-hidden">
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <ProblemPanel
+                  title={problemMeta.title}
+                  description={problemMeta.description}
+                  constraints={problemMeta.constraints}
+                  examples={problemMeta.examples}
+                  onImportProblem={handleImportProblem}
+                  isImporting={isImporting}
+                  activeTab={leftPanelTab}
+                  onActiveTabChange={setLeftPanelTab}
+                  detectedComplexity={leftComplexityDetected}
+                  showComplexityGraph={showLeftComplexityGraph}
                   flowchartData={flowchartData}
                   isGeneratingFlowchart={isGeneratingFlowchart}
+                  onGenerateFlowchart={handleGenerateFlowchart}
+                  onTimeComplexity={handleTimeComplexity}
                   codeAnalysis={codeAnalysis}
-                  activeTab={activeTab}
-                  onActiveTabChange={setActiveTab}
+                  complexityReport={complexityReport}
+                  isAnalyzingComplexity={isAnalyzingComplexity}
                 />
-              </Panel>
-            </Group>
-          </Panel>
-        </Group>
+              </div>
+            </Panel>
+
+            {/* Vertical Resize Handle */}
+            <Separator className="w-2 bg-transparent transition-all hover:bg-neutral-800 active:bg-neutral-700 cursor-col-resize shrink-0 mx-1 rounded" />
+
+            {/* Right Panel - Editor & Console */}
+            <Panel defaultSize={60} minSize={30} className="flex flex-col bg-transparent overflow-hidden">
+              <Group orientation="vertical">
+                {/* Right Top Panel - Editor */}
+                <Panel defaultSize={75} minSize={20} className="bg-[#1e1e1e] rounded-xl border border-[#2a2a2a] shadow-sm flex flex-col overflow-hidden">
+                  {/* Editor Header for Language Selection */}
+                  <div className="flex shrink-0 items-center justify-between border-b border-[#2a2a2a] bg-[#1e1e1e] px-4 h-[36px]">
+                    <select
+                      value={language}
+                      onChange={(e) =>
+                        handleLanguageChange(e.target.value as EditorLanguage)
+                      }
+                      className="min-w-[120px] shrink-0 rounded bg-[#2a2a2a] border border-[#3a3a3a] px-2 py-0.5 text-[11px] font-medium text-neutral-300 outline-none transition-colors hover:bg-[#333333] hover:text-white"
+                    >
+                      <option value="c">C</option>
+                      <option value="cpp">C++</option>
+                      <option value="java">Java</option>
+                      <option value="python">Python</option>
+                      <option value="python3">Python3</option>
+                      <option value="javascript">JavaScript</option>
+                      <option value="typescript">TypeScript</option>
+                      <option value="csharp">C#</option>
+                    </select>
+                    <button
+                      onClick={() => toggleMaximizePanel("editor")}
+                      className="flex items-center justify-center h-6 w-6 rounded hover:bg-[#333] transition-colors text-neutral-400 hover:text-white"
+                      title="Fullscreen"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                    </button>
+                  </div>
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <CodeEditor
+                      value={code}
+                      onChange={setCode}
+                      language={language}
+                      height="100%"
+                    />
+                  </div>
+                </Panel>
+
+                {/* Horizontal Resize Handle */}
+                <Separator className="h-2 bg-transparent transition-all hover:bg-neutral-800 active:bg-neutral-700 cursor-row-resize shrink-0 my-1 rounded" />
+
+                {/* Right Bottom Panel - Console */}
+                <Panel 
+                  panelRef={consolePanelRef} 
+                  defaultSize={25} 
+                  minSize={15} 
+                  collapsible={true}
+                  collapsedSize={0}
+                  onResize={(size) => {
+                    const percentage =
+                      typeof size === "number"
+                        ? size
+                        : size?.asPercentage ?? 0;
+
+                    setIsConsoleExpanded(percentage > 10);
+                  }}
+                  className="bg-[#1e1e1e] rounded-xl border border-[#2a2a2a] shadow-sm flex flex-col overflow-hidden h-full min-h-0"
+                >
+                  <ConsoleOutput
+                    isExpanded={isConsoleExpanded}
+                    onToggleExpand={toggleConsole}
+                    isFullscreenMode={false}
+                    onToggleFullscreen={() => toggleMaximizePanel("terminal")}
+                    consoleOutput={consoleOutput}
+                    aiFeedback={aiFeedback}
+                    edgeCases={edgeCasesOutput}
+                    detectedComplexity={detectedComplexity}
+                    showComplexityGraph={showComplexityGraph}
+                    testResults={testResults}
+                    isRunning={isRunning}
+                    isAnalyzing={isAnalyzing}
+                    isDebugging={isDebugging}
+                    isHinting={isHinting}
+                    problemDescription={problemMeta.description}
+                    userCode={code}
+                    onGenerateEdgeCases={handleGenerateEdgeCases}
+                    isGeneratingEdgeCases={isGeneratingEdgeCases}
+                    flowchartData={flowchartData}
+                    isGeneratingFlowchart={isGeneratingFlowchart}
+                    codeAnalysis={codeAnalysis}
+                    activeTab={activeTab}
+                    onActiveTabChange={setActiveTab}
+                  />
+                </Panel>
+              </Group>
+            </Panel>
+          </Group>
+        )}
       </div>
 
       {/* Floating AI Mentor Chat */}
@@ -793,15 +913,36 @@ export default function Home() {
       />
 
       {/* Conditionally Render Interview Mode Full Screen */}
-      {isInterviewActive && (
+      {(interview.isInterviewActive || interview.showReport) && (
         <InterviewMode
           problemMeta={problemMeta}
           code={code}
           setCode={setCode}
           language={language}
           setLanguage={handleLanguageChange}
-          onExit={() => setIsInterviewActive(false)}
+          onExit={interview.exitInterview}
           isProblemLoaded={isProblemLoaded}
+          sessionId={interview.sessionId}
+          phase={interview.phase}
+          messages={interview.messages}
+          isLoading={interview.isLoading}
+          timeLeft={interview.timeLeft}
+          onStart={(diff, personality) => interview.startInterview({
+            problemTitle: problemMeta.title,
+            problemDescription: problemMeta.description,
+            difficulty: diff.toLowerCase().includes("faang") ? "hard" : 
+                       diff.toLowerCase().includes("advanced") ? "hard" :
+                       diff.toLowerCase().includes("intermediate") ? "medium" : "easy",
+            interviewerPersonality: personality as any
+          })}
+          onSendMessage={interview.sendMessage}
+          onSubmitCode={() => interview.submitCode(code, language)}
+          onEnd={interview.endInterview}
+          evaluation={interview.evaluation}
+          evaluationState={interview.evaluationState}
+          evidence={interview.evidence}
+          isExpired={interview.isExpired}
+          showReport={interview.showReport}
         />
       )}
     </div>

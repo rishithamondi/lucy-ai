@@ -5,6 +5,11 @@ import { Panel, Group, Separator } from "react-resizable-panels";
 import CodeEditor, { type EditorLanguage } from "@/components/CodeEditor";
 import InterviewChat from "@/components/InterviewChat";
 import { defaultCode } from "@/components/CodeEditor";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { UI_TOKENS } from "@/lib/theme";
+
+import type { InterviewPhase, InterviewMessage, InterviewEvaluation, InterviewEvidence } from "@/types/interview";
 
 interface InterviewModeProps {
   problemMeta: {
@@ -19,6 +24,22 @@ interface InterviewModeProps {
   setLanguage: (lang: EditorLanguage) => void;
   onExit: () => void;
   isProblemLoaded: boolean;
+  
+  // New props from useInterview
+  sessionId: string | null;
+  phase: InterviewPhase;
+  messages: InterviewMessage[];
+  isLoading: boolean;
+  timeLeft: number;
+  onStart: (diff: string, personality: string) => void;
+  onSendMessage: (msg: string, currentCode?: string) => void;
+  onSubmitCode: () => void;
+  onEnd: () => void;
+  evaluation: string | null;
+  evaluationState: InterviewEvaluation | null;
+  evidence: InterviewEvidence | null;
+  isExpired: boolean;
+  showReport: boolean;
 }
 
 export default function InterviewMode({
@@ -29,55 +50,90 @@ export default function InterviewMode({
   setLanguage,
   onExit,
   isProblemLoaded,
+  sessionId,
+  phase,
+  messages,
+  isLoading,
+  timeLeft,
+  onStart,
+  onSendMessage,
+  onSubmitCode,
+  onEnd,
+  evaluation,
+  evaluationState,
+  evidence,
+  isExpired,
+  showReport,
 }: InterviewModeProps) {
-  const [difficulty, setDifficulty] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState(25 * 60); // 25 minutes
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [isEnded, setIsEnded] = useState(false); // Interview finished
-
-  // Timer logic
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isTimerRunning && timeLeft > 0) {
-      interval = setInterval(() => setTimeLeft((t) => t - 1), 1000);
-    } else if (timeLeft === 0) {
-      setIsTimerRunning(false);
-      setIsEnded(true);
-    }
-    return () => clearInterval(interval);
-  }, [isTimerRunning, timeLeft]);
-
-  const handleStartInterview = (selectedDiff: string) => {
-    setDifficulty(selectedDiff);
-    setIsTimerRunning(true);
-  };
+  const [showSetup, setShowSetup] = useState(true);
+  const [selectedPersonality, setSelectedPersonality] = useState("neutral");
 
   const formatTime = (seconds: number) => {
+    if (isNaN(seconds) || seconds < 0) return "00:00";
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handleStartInterview = (selectedDiff: string) => {
+    if (onStart) {
+      onStart(selectedDiff, selectedPersonality);
+      setShowSetup(false);
+    }
+  };
+
   // Difficulty Selector Overlay
-  if (!difficulty) {
+  if (showSetup) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#0B0F14] text-white">
-        <div className="w-full max-w-md p-8 rounded-2xl bg-[#0F172A] border border-[#4a4a4a] shadow-2xl text-center space-y-8">
+      <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center ${UI_TOKENS.background.main} text-white`}>
+        <div className={`w-full max-w-lg p-8 rounded-2xl ${UI_TOKENS.background.panel} border ${UI_TOKENS.border.primary} shadow-2xl text-center space-y-8`}>
           <div className="space-y-2">
-            <h2 className="text-2xl font-bold tracking-tight">Setup Interview</h2>
-            <p className="text-neutral-400 text-sm">Select a difficulty to begin the 25-minute interview.</p>
+            <h2 className="text-2xl font-bold tracking-tight">Interview Setup</h2>
+            <p className={`${UI_TOKENS.text.muted} text-sm`}>Configure your AI interviewer personality and difficulty.</p>
           </div>
-          <div className="grid grid-cols-1 gap-3">
-            {["Beginner", "Intermediate", "Advanced", "FAANG level"].map((diff) => (
-              <button
-                key={diff}
-                onClick={() => handleStartInterview(diff)}
-                className="w-full rounded-xl bg-[#2a2a2a] border border-[#3a3a3a] py-3 text-sm font-bold text-neutral-300 hover:bg-[#404040] hover:text-white transition-colors"
-              >
-                {diff}
-              </button>
-            ))}
+
+          <div className="space-y-4">
+            <div className="text-left">
+              <span className={`text-[10px] font-bold ${UI_TOKENS.text.muted} uppercase tracking-widest block mb-2`}>Interviewer Personality</span>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: "supportive", label: "Supportive" },
+                  { id: "neutral", label: "Professional" },
+                  { id: "strict", label: "FAANG Strict" },
+                  { id: "rapid-fire", label: "Rapid Fire" },
+                  { id: "mentor", label: "Lead Mentor" }
+                ].map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedPersonality(p.id)}
+                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                      selectedPersonality === p.id 
+                        ? `${UI_TOKENS.accent.emeraldBg} border ${UI_TOKENS.accent.emeraldBorder} ${UI_TOKENS.accent.emerald}`
+                        : `${UI_TOKENS.button.secondary}`
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="text-left">
+              <span className={`text-[10px] font-bold ${UI_TOKENS.text.muted} uppercase tracking-widest block mb-2`}>Select Difficulty</span>
+              <div className="grid grid-cols-2 gap-3">
+                {["Beginner", "Intermediate", "Advanced", "FAANG level"].map((diff) => (
+                  <button
+                    key={diff}
+                    onClick={() => handleStartInterview(diff)}
+                    className={`w-full rounded-xl py-3 text-sm font-bold ${UI_TOKENS.button.secondary}`}
+                  >
+                    {diff}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
+
           <button onClick={onExit} className="text-sm font-semibold text-neutral-500 hover:text-neutral-300 transition-colors">
             Cancel and Return
           </button>
@@ -87,23 +143,37 @@ export default function InterviewMode({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#0B0F14] text-white">
+    <div className={`fixed inset-0 z-50 flex flex-col ${UI_TOKENS.background.main} text-white`}>
       {/* Header */}
-      <header className="flex shrink-0 items-center justify-between border-b border-[#4a4a4a] bg-[#0F172A] px-6 py-3">
+      <header className={`flex shrink-0 items-center justify-between border-b ${UI_TOKENS.border.secondary} ${UI_TOKENS.background.card} px-6 py-3`}>
         <div className="flex items-center gap-4">
           <img src="/lucy.png" alt="Lucy AI Logo" className="w-6 h-6 object-contain" />
           <h1 className="text-lg font-bold tracking-tight">Lucy AI</h1>
           <div className="h-4 w-px bg-white/10" />
           <div className="flex items-center gap-2">
-            <span className="flex h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)] animate-pulse" />
-            <span className="text-xs font-bold uppercase tracking-widest text-amber-500">Interview Mode</span>
-            <span className="rounded bg-white/5 px-2 py-0.5 text-[10px] font-bold uppercase text-neutral-400 border border-[#3a3a3a]">
-              {difficulty}
+            <span className={`flex h-2 w-2 rounded-full bg-emerald-500 ${UI_TOKENS.accent.emeraldGlow} animate-pulse`} />
+            <span className={`text-xs font-bold uppercase tracking-widest ${UI_TOKENS.accent.emerald}`}>Interview Mode</span>
+            <span className={`rounded bg-white/5 px-2 py-0.5 text-[10px] font-bold uppercase ${UI_TOKENS.text.muted} border ${UI_TOKENS.border.secondary}`}>
+              {phase === "introduction" ? "Intro" : 
+               phase === "discussion" ? "Plan" :
+               phase === "coding" ? "Code" :
+               phase === "review" ? "Review" : "Eval"}
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-6">
+          {/* Submit Button */}
+          {phase === "coding" && (
+            <button
+              onClick={onSubmitCode}
+              disabled={isLoading}
+              className={`flex items-center justify-center h-[28px] rounded-md px-4 text-xs font-bold disabled:opacity-50 ${UI_TOKENS.button.primary}`}
+            >
+              {isLoading ? "Submitting..." : "Submit Code"}
+            </button>
+          )}
+
           {/* Timer */}
           <div className="flex items-center gap-2 bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg px-3 py-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={timeLeft < 300 ? "#ef4444" : "#94a3b8"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -113,8 +183,9 @@ export default function InterviewMode({
           </div>
 
           <button
-            onClick={onExit}
-            className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors"
+            onClick={onEnd}
+            disabled={isLoading}
+            className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors disabled:opacity-50"
           >
             End Interview
           </button>
@@ -125,7 +196,7 @@ export default function InterviewMode({
       <div className="min-h-0 flex-1 overflow-hidden">
         <Group orientation="horizontal">
           {/* LEFT: Problem & Editor */}
-          <Panel defaultSize={65} minSize={40} className="flex flex-col bg-[#0B0F14]">
+          <Panel defaultSize={65} minSize={40} className={`flex flex-col ${UI_TOKENS.background.main}`}>
             <Group orientation="vertical">
               {/* Problem Panel */}
               <Panel defaultSize={40} minSize={20} className="overflow-y-auto custom-scrollbar p-6 space-y-6">
@@ -171,12 +242,12 @@ export default function InterviewMode({
                 )}
               </Panel>
 
-              <Separator className="h-1 bg-white/5 transition-colors hover:bg-slate-700 cursor-row-resize shrink-0" />
+              <Separator className="h-1 bg-transparent transition-colors hover:bg-neutral-700 cursor-row-resize shrink-0 mx-2" />
 
               {/* Code Editor */}
-              <Panel defaultSize={60} minSize={30} className="flex flex-col bg-[#0F172A]">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-[#3a3a3a] bg-[#252526]">
-                  <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Workspace</span>
+              <Panel defaultSize={60} minSize={30} className={`flex flex-col ${UI_TOKENS.background.panel} rounded-xl border ${UI_TOKENS.border.primary} m-2 mt-0 overflow-hidden`}>
+                <div className={`flex items-center justify-between px-4 py-2 border-b ${UI_TOKENS.border.secondary} ${UI_TOKENS.background.card}`}>
+                  <span className={`text-[10px] font-bold ${UI_TOKENS.text.muted} uppercase tracking-widest`}>Workspace</span>
                   <select
                     value={language}
                     onChange={(e) => {
@@ -211,30 +282,133 @@ export default function InterviewMode({
           <Separator className="w-1 bg-white/5 transition-colors hover:bg-slate-700 cursor-col-resize shrink-0" />
 
           {/* RIGHT: AI Interviewer Chat */}
-          <Panel defaultSize={35} minSize={25} className="bg-[#0F172A]">
+          <Panel defaultSize={35} minSize={25} className={UI_TOKENS.background.panel}>
             <InterviewChat 
-              problem={problemMeta.description}
-              code={code}
-              language={language}
-              isProblemLoaded={isProblemLoaded}
-              difficulty={difficulty}
+              messages={messages}
+              onSendMessage={(msg) => onSendMessage(msg, code)}
+              isLoading={isLoading}
             />
           </Panel>
         </Group>
       </div>
       
-      {/* End Interview overlay */}
-      {isEnded && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#0B0F14]/90 backdrop-blur-sm">
-           <div className="w-full max-w-md p-8 rounded-2xl bg-[#0F172A] border border-[#4a4a4a] shadow-2xl text-center space-y-6">
-             <div className="w-16 h-16 bg-amber-500/20 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
-               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22A10 10 0 0 0 12 2a10 10 0 0 0 0 20Z"/><path d="M12 6v6l4 2"/></svg>
+      {/* End Interview / Evaluation overlay */}
+      {(sessionId && (timeLeft === 0 || showReport || (isLoading && phase === "evaluation"))) && (
+        <div className={`absolute inset-0 z-50 flex items-center justify-center ${UI_TOKENS.background.overlay}`}>
+           <div className={`w-full max-w-3xl p-10 rounded-2xl ${UI_TOKENS.background.panel} border ${UI_TOKENS.border.primary} shadow-2xl text-center space-y-6 max-h-[85vh] overflow-y-auto custom-scrollbar`}>
+             <div className={`w-16 h-16 ${UI_TOKENS.accent.emeraldBg} ${UI_TOKENS.accent.emerald} rounded-full flex items-center justify-center mx-auto mb-4`}>
+               {isLoading ? (
+                 <div className="h-8 w-8 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+               ) : (
+                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22A10 10 0 0 0 12 2a10 10 0 0 0 0 20Z"/><path d="M12 6v6l4 2"/></svg>
+               )}
              </div>
-             <h2 className="text-2xl font-bold text-white tracking-tight">Time's Up!</h2>
-             <p className="text-neutral-400 text-sm">The interview session has ended. Lucy will provide her final evaluation in the chat.</p>
-             <button onClick={onExit} className="mt-4 w-full rounded-xl bg-slate-800 border border-[#4a4a4a] px-4 py-3 text-sm font-bold text-white hover:bg-slate-700 transition-colors">
-               Return to Dashboard
-             </button>
+             
+             <h2 className="text-2xl font-bold text-white tracking-tight">
+               {isLoading ? "Generating Report..." : (timeLeft === 0 ? "Time's Up!" : "Interview Evaluation")}
+             </h2>
+             
+             {isLoading ? (
+               <div className="space-y-4">
+                 <p className="text-neutral-400 text-sm">Lucy is analyzing your performance and preparing your final interview report. This usually takes a few seconds...</p>
+                 <div className="flex justify-center gap-1">
+                   {[0, 1, 2].map((i) => (
+                     <div key={i} className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.1}s` }} />
+                   ))}
+                 </div>
+               </div>
+             ) : (
+               <>
+                 {evaluationState && (
+                   <div className="grid grid-cols-2 gap-4 mb-6">
+                     {Object.entries(evaluationState.scores).map(([category, score]) => (
+                       <div key={category} className="bg-[#1a1a1a] border border-[#3a3a3a] rounded-xl p-3 text-left">
+                         <div className="flex justify-between items-center mb-2">
+                           <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">{category.replace(/([A-Z])/g, ' $1')}</span>
+                           <span className={`text-xs font-mono font-bold ${score >= 7 ? 'text-emerald-400' : score >= 4 ? 'text-amber-400' : 'text-red-400'}`}>{score}/10</span>
+                         </div>
+                         <div className="w-full bg-[#2a2a2a] h-1 rounded-full overflow-hidden">
+                           <div 
+                             className={`h-full transition-all duration-500 ${score >= 7 ? 'bg-emerald-500' : score >= 4 ? 'bg-amber-500' : 'bg-red-500'}`}
+                             style={{ width: `${(score / 10) * 100}%` }}
+                           />
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 )}
+
+                 {/* Execution Summary Dashboard */}
+                 {evaluationState && evidence && (
+                    <div className="mb-6 bg-[#1a1a1a] border border-[#3a3a3a] rounded-xl p-4 text-left">
+                       <h3 className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-3">Execution Summary</h3>
+                       <div className="grid grid-cols-3 gap-4">
+                          <div className="flex flex-col">
+                             <span className="text-[10px] text-neutral-500 uppercase">Pass Rate</span>
+                             <span className="text-sm font-bold text-emerald-400">
+                                {evidence?.totalTestCases > 0 
+                                  ? `${Math.round((evidence.passedTestCases / evidence.totalTestCases) * 100)}%` 
+                                  : "0%"}
+                             </span>
+                          </div>
+                          <div className="flex flex-col">
+                             <span className="text-[10px] text-neutral-500 uppercase">Submissions</span>
+                             <span className="text-sm font-bold text-white">{evidence?.submissionCount || 0}</span>
+                          </div>
+                          <div className="flex flex-col">
+                             <span className="text-[10px] text-neutral-500 uppercase">Failures</span>
+                             <span className="text-sm font-bold text-red-400">
+                                {(evidence?.compilationFailures || 0) + (evidence?.runtimeFailures || 0)}
+                             </span>
+                          </div>
+                       </div>
+                    </div>
+                 )}
+
+                 {evaluation ? (
+                   <div className="text-left bg-slate-900/50 rounded-xl p-6 border border-[#3a3a3a] prose prose-invert prose-sm max-w-none">
+                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                       {evaluation}
+                     </ReactMarkdown>
+                   </div>
+                 ) : (
+                   <p className="text-neutral-400 text-sm">The interview session has ended. Lucy is providing her final evaluation.</p>
+                 )}
+               </>
+             )}
+
+             {!isLoading && (
+               <button onClick={onExit} className={`mt-4 w-full rounded-xl px-4 py-3 text-sm font-bold ${UI_TOKENS.button.secondary}`}>
+                 Return to Dashboard
+               </button>
+             )}
+           </div>
+        </div>
+      )}
+
+      {/* Session Expired Overlay */}
+      {isExpired && (
+        <div className={`absolute inset-0 z-[60] flex items-center justify-center ${UI_TOKENS.background.overlay}`}>
+           <div className={`w-full max-w-md p-8 rounded-2xl ${UI_TOKENS.background.panel} border border-red-500/20 shadow-2xl text-center space-y-6`}>
+             <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+             </div>
+             <h2 className="text-2xl font-bold text-white tracking-tight">Session Expired</h2>
+             <p className="text-neutral-400 text-sm">Your interview session has timed out or was reset due to a server update. Please restart the session to continue.</p>
+             <div className="flex flex-col gap-3">
+               <button 
+                 onClick={() => {
+                   setShowSetup(true); // Back to difficulty selection
+                   // The hook handles clearing internal sessionId on startInterview
+                 }} 
+                 className={`w-full rounded-xl px-4 py-3 text-sm font-bold ${UI_TOKENS.button.primary}`}
+               >
+                 Restart Interview
+               </button>
+               <button onClick={onExit} className={`text-sm font-semibold ${UI_TOKENS.button.ghost}`}>
+                 Exit to Dashboard
+               </button>
+             </div>
            </div>
         </div>
       )}
